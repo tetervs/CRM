@@ -35,6 +35,12 @@ export default function ReimbursementDetail() {
 
   useEffect(() => { fetchReimbursement(id) }, [id, fetchReimbursement])
 
+  useEffect(() => {
+    if (!current || ['Paid', 'Rejected'].includes(current.status)) return
+    const interval = setInterval(() => fetchReimbursement(id), 10000)
+    return () => clearInterval(interval)
+  }, [id, current?.status, fetchReimbursement])
+
   if (loading || !current) {
     return (
       <PageWrapper>

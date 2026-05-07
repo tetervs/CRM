@@ -1,9 +1,12 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { PageWrapper } from '../components/layout/PageWrapper'
 import { StatCard } from '../components/ui/StatCard'
 import { Card } from '../components/ui/Card'
 import { Badge } from '../components/ui/Badge'
 import useLeadStore from '../store/leadStore'
+import useAuthStore from '../store/authStore'
+import api from '../api/index'
 
 const STATUSES = ['New', 'Contacted', 'Proposal Sent', 'Won', 'Lost']
 
@@ -23,8 +26,19 @@ const formatDate = (dateStr) =>
 
 export default function Dashboard() {
   const { leads, fetchLeads } = useLeadStore()
+  const { user } = useAuthStore()
+  const navigate = useNavigate()
+  const [overdueLeads, setOverdueLeads] = useState([])
+
+  const hasLeadAccess = user?.role !== 'employee'
 
   useEffect(() => { fetchLeads() }, [fetchLeads])
+
+  useEffect(() => {
+    if (hasLeadAccess) {
+      api.get('/leads/overdue-followups').then((r) => setOverdueLeads(r.data)).catch(() => {})
+    }
+  }, [hasLeadAccess])
 
   const totalRevenue = leads.filter((l) => l.status === 'Won').reduce((s, l) => s + l.dealValue, 0)
   const wonCount = leads.filter((l) => l.status === 'Won').length
@@ -126,6 +140,33 @@ export default function Dashboard() {
           </div>
         </Card>
       </div>
+
+      {hasLeadAccess && overdueLeads.length > 0 && (
+        <div className="mt-4">
+          <Card title="Overdue Follow-ups">
+            <div className="divide-y divide-surface-border">
+              {overdueLeads.map((lead) => (
+                <button
+                  key={lead._id}
+                  onClick={() => navigate(`/leads/${lead._id}`)}
+                  className="w-full flex items-center gap-3 py-2.5 text-left hover:bg-slate-50 transition-colors -mx-1 px-1 rounded"
+                >
+                  <div className="w-7 h-7 rounded-full bg-red-100 text-red-600 text-xs font-bold flex items-center justify-center shrink-0">
+                    {lead.title[0].toUpperCase()}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-slate-900 truncate">{lead.title}</p>
+                    <p className="text-xs text-slate-500">{lead.owner?.name}</p>
+                  </div>
+                  <span className="text-xs font-medium text-red-600 shrink-0">
+                    {new Date(lead.followUpDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })}
+                  </span>
+                </button>
+              ))}
+            </div>
+          </Card>
+        </div>
+      )}
     </PageWrapper>
   )
 }

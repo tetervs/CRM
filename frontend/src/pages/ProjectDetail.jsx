@@ -32,6 +32,13 @@ const formatDate = (d) =>
   d ? new Date(d).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—'
 
 const emptyPullForm = { employeeType: 'inhouse', pulledEmployee: '', freelancerName: '', freelancerEmail: '', reason: '' }
+const emptyMilestoneForm = { title: '', description: '', dueDate: '', assignedTo: '' }
+
+const MILESTONE_STATUS_STYLE = {
+  'pending':     'bg-slate-100 text-slate-600',
+  'in-progress': 'bg-amber-100 text-amber-700',
+  'completed':   'bg-emerald-100 text-emerald-700',
+}
 
 export default function ProjectDetail() {
   const { id } = useParams()
@@ -57,10 +64,21 @@ export default function ProjectDetail() {
   const [pullError, setPullError]             = useState('')
   const [pullSuccess, setPullSuccess]         = useState('')
 
+  const [milestones, setMilestones]                 = useState([])
+  const [milestoneModalOpen, setMilestoneModalOpen] = useState(false)
+  const [milestoneForm, setMilestoneForm]           = useState(emptyMilestoneForm)
+  const [addingMilestone, setAddingMilestone]       = useState(false)
+  const [milestoneError, setMilestoneError]         = useState('')
+  const [updatingMilestone, setUpdatingMilestone]   = useState('')
+
+  const fetchMilestones = () =>
+    api.get(`/milestones/project/${id}`).then((r) => setMilestones(r.data)).catch(() => {})
+
   useEffect(() => { fetchProject(id) }, [id, fetchProject])
 
   useEffect(() => {
     api.get(`/projects/${id}/manpower`).then((r) => setManpowerPulls(r.data)).catch(() => {})
+    fetchMilestones()
   }, [id])
 
   if (loading || !project) {
@@ -76,16 +94,18 @@ export default function ProjectDetail() {
   }
 
   const isPrivileged = ['finance_head', 'admin'].includes(user?.role)
+  const isManager    = user?.role === 'manager'
   const isHead = (project.projectHead?._id || project.projectHead)?.toString() === user?._id?.toString()
   const memberIds = project.teamMembers?.map((m) => (m._id || m).toString()) || []
   const isMember  = memberIds.includes(user?._id?.toString())
 
-  const canAddProgress  = isPrivileged || isHead || isMember
-  const canLogExpense   = isPrivileged || isHead
-  const canChangeStatus = isPrivileged || isHead
-  const canPullEmployee = (isPrivileged || isHead) && project.status !== 'Completed'
-  const canComplete     = isPrivileged
+  const canAddProgress      = isPrivileged || isHead || isMember
+  const canLogExpense       = isPrivileged || isHead
+  const canChangeStatus     = isPrivileged || isHead
+  const canPullEmployee     = (isPrivileged || isHead) && project.status !== 'Completed'
+  const canComplete         = isPrivileged
   const canSubmitReimbursement = isPrivileged || isHead || isMember
+  const canManageMilestones = isPrivileged || isManager
 
   const totalExpenses = project.expenses?.reduce((s, e) => s + e.amount, 0) || 0
   const profit    = project.budget - totalExpenses
@@ -123,13 +143,46 @@ export default function ProjectDetail() {
     setShowCompleteModal(false)
   }
 
+  const handleAddMilestone = async (e) => {
+    e.preventDefault()
+    if (!milestoneForm.title.trim() || !milestoneForm.dueDate) return
+    setMilestoneError('')
+    setAddingMilestone(true)
+    try {
+      await api.post('/milestones', {
+        projectId:   id,
+        title:       milestoneForm.title.trim(),
+        description: milestoneForm.description.trim(),
+        dueDate:     milestoneForm.dueDate,
+        assignedTo:  milestoneForm.assignedTo || undefined,
+      })
+      await fetchMilestones()
+      setMilestoneModalOpen(false)
+      setMilestoneForm(emptyMilestoneForm)
+    } catch (err) {
+      setMilestoneError(err.response?.data?.message || 'Failed to add milestone')
+    } finally {
+      setAddingMilestone(false)
+    }
+  }
+
+  const handleMilestoneStatus = async (milestoneId, status) => {
+    setUpdatingMilestone(milestoneId)
+    try {
+      await api.patch(`/milestones/${milestoneId}`, { status })
+      setMilestones((prev) => prev.map((m) => m._id === milestoneId ? { ...m, status } : m))
+    } catch {}
+    setUpdatingMilestone('')
+  }
+
   const openPullModal = async () => {
     setPullError('')
     setPullSuccess('')
     setPullForm(emptyPullForm)
     try {
       const { data } = await api.get('/users')
-      setAvailableWorkers(data.filter((u) => ['employee', 'sales'].includes(u.role)))
+      const existingMemberIds = project.teamMembers?.map((m) => (m._id || m).toString()) || []
+      setAvailableWorkers(data.filter((u) => ['employee', 'sales'].includes(u.role) && !existingMemberIds.includes(u._id.toString())))
     } catch {}
     setPullModalOpen(true)
   }
@@ -143,7 +196,7 @@ export default function ProjectDetail() {
     }
     setPulling(true)
     try {
-      await api.post('/manpower', { projectId: id, ...pullForm })
+      await api.post(`/projects/${id}/manpower`, pullForm)
       await fetchProject(id)
       const { data } = await api.get(`/projects/${id}/manpower`)
       setManpowerPulls(data)
@@ -265,6 +318,59 @@ export default function ProjectDetail() {
             )}
           </Card>
 
+          {/* Milestones */}
+          <Card
+            title="Milestones"
+            action={canManageMilestones ? (
+              <Button variant="ghost" size="sm" onClick={() => { setMilestoneError(''); setMilestoneForm(emptyMilestoneForm); setMilestoneModalOpen(true) }}>
+                + Add
+              </Button>
+            ) : null}
+          >
+            {milestones.length ? (
+              <div className="divide-y divide-surface-border">
+                {milestones.map((m) => {
+                  const isOverdue = m.status !== 'completed' && new Date(m.dueDate) < new Date()
+                  return (
+                    <div key={m._id} className="py-3 flex items-start gap-3">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <p className="text-sm font-medium text-slate-900">{m.title}</p>
+                          {isOverdue && (
+                            <span className="px-1.5 py-0.5 rounded text-xs font-medium bg-red-100 text-red-700">Overdue</span>
+                          )}
+                        </div>
+                        {m.description && <p className="text-xs text-slate-500 mt-0.5 truncate">{m.description}</p>}
+                        <div className="flex items-center gap-3 mt-1 text-xs text-slate-400">
+                          <span>Due {new Date(m.dueDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}</span>
+                          {m.assignedTo && <span>· {m.assignedTo.name}</span>}
+                        </div>
+                      </div>
+                      {canManageMilestones ? (
+                        <select
+                          value={m.status}
+                          onChange={(e) => handleMilestoneStatus(m._id, e.target.value)}
+                          disabled={updatingMilestone === m._id}
+                          className="text-xs px-2 py-1 rounded border border-surface-border bg-white focus:outline-none focus:border-brand-primary shrink-0"
+                        >
+                          <option value="pending">Pending</option>
+                          <option value="in-progress">In Progress</option>
+                          <option value="completed">Completed</option>
+                        </select>
+                      ) : (
+                        <span className={`shrink-0 px-2 py-0.5 rounded text-xs font-medium ${MILESTONE_STATUS_STYLE[m.status] || 'bg-slate-100 text-slate-600'}`}>
+                          {m.status}
+                        </span>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            ) : (
+              <p className="text-sm text-slate-400 text-center py-2">No milestones yet</p>
+            )}
+          </Card>
+
           {/* Expenses */}
           <Card title="Expenses">
             {canLogExpense && (
@@ -383,6 +489,62 @@ export default function ProjectDetail() {
           </Card>
         </div>
       </div>
+
+      {/* Add Milestone Modal */}
+      <Modal isOpen={milestoneModalOpen} onClose={() => setMilestoneModalOpen(false)} title="Add Milestone">
+        <form onSubmit={handleAddMilestone} className="space-y-4">
+          {milestoneError && (
+            <div className="px-3 py-2 bg-red-50 border border-red-200 text-red-700 rounded-md text-sm">{milestoneError}</div>
+          )}
+          <Input
+            label="Title"
+            required
+            placeholder="Milestone title"
+            value={milestoneForm.title}
+            onChange={(e) => setMilestoneForm((f) => ({ ...f, title: e.target.value }))}
+          />
+          <div className="flex flex-col gap-1">
+            <label className="text-xs font-medium text-slate-600 uppercase tracking-wide">Description</label>
+            <textarea
+              rows={2}
+              placeholder="Optional description..."
+              value={milestoneForm.description}
+              onChange={(e) => setMilestoneForm((f) => ({ ...f, description: e.target.value }))}
+              className="w-full px-3 py-2 text-sm rounded-md border border-surface-border focus:outline-none focus:border-brand-primary focus:ring-2 focus:ring-brand-light resize-none"
+            />
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className="text-xs font-medium text-slate-600 uppercase tracking-wide">Due Date<span className="text-status-lost ml-0.5">*</span></label>
+            <input
+              type="date"
+              required
+              value={milestoneForm.dueDate}
+              onChange={(e) => setMilestoneForm((f) => ({ ...f, dueDate: e.target.value }))}
+              className="w-full px-3 py-2 text-sm rounded-md border border-surface-border focus:outline-none focus:border-brand-primary focus:ring-2 focus:ring-brand-light"
+            />
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className="text-xs font-medium text-slate-600 uppercase tracking-wide">Assign To</label>
+            <select
+              value={milestoneForm.assignedTo}
+              onChange={(e) => setMilestoneForm((f) => ({ ...f, assignedTo: e.target.value }))}
+              className="w-full px-3 py-2 text-sm rounded-md border border-surface-border bg-white text-slate-900 focus:border-brand-primary focus:ring-2 focus:ring-brand-light outline-none"
+            >
+              <option value="">Unassigned</option>
+              {project.projectHead && (
+                <option value={project.projectHead._id}>{project.projectHead.name} (Head)</option>
+              )}
+              {project.teamMembers?.map((m) => (
+                <option key={m._id} value={m._id}>{m.name}</option>
+              ))}
+            </select>
+          </div>
+          <div className="flex justify-end gap-2 pt-2">
+            <Button variant="secondary" type="button" onClick={() => setMilestoneModalOpen(false)}>Cancel</Button>
+            <Button type="submit" loading={addingMilestone} disabled={!milestoneForm.title.trim() || !milestoneForm.dueDate}>Add Milestone</Button>
+          </div>
+        </form>
+      </Modal>
 
       {/* Pull Employee Modal */}
       <Modal isOpen={pullModalOpen} onClose={() => setPullModalOpen(false)} title="Pull Employee">

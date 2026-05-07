@@ -20,7 +20,8 @@ const leadSchema = new mongoose.Schema({
   owner: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   notes: { type: String, default: '', maxlength: 2000 },
   tags:  [{ type: String, maxlength: 50 }],
-  activityLog: [activitySchema],
+  activityLog:  [activitySchema],
+  followUpDate: { type: Date, default: null },
 }, {
   timestamps: true,
 })

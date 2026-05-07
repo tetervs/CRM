@@ -65,7 +65,7 @@ const updateLead = async (req, res) => {
       return res.status(403).json({ message: 'Access denied' })
     }
 
-    const allowed = ['title', 'contactName', 'contactEmail', 'contactPhone', 'dealValue', 'notes', 'tags']
+    const allowed = ['title', 'contactName', 'contactEmail', 'contactPhone', 'dealValue', 'notes', 'tags', 'followUpDate']
     allowed.forEach((f) => { if (req.body[f] !== undefined) lead[f] = req.body[f] })
 
     lead.activityLog.push({ action: 'Lead updated', performedBy: req.user._id })
@@ -161,4 +161,20 @@ const convertToProject = async (req, res) => {
   }
 }
 
-module.exports = { getLeads, createLead, getLead, updateLead, deleteLead, updateStatus, convertToProject }
+const getOverdueFollowups = async (req, res) => {
+  try {
+    const filter = {
+      ...ownerFilter(req.user),
+      followUpDate: { $lt: new Date() },
+      status: { $nin: ['Won', 'Lost'] },
+    }
+    const leads = await Lead.find(filter)
+      .populate('owner', 'name email')
+      .sort({ followUpDate: 1 })
+    res.json(leads)
+  } catch (err) {
+    res.status(500).json({ message: err.message })
+  }
+}
+
+module.exports = { getLeads, createLead, getLead, updateLead, deleteLead, updateStatus, convertToProject, getOverdueFollowups }

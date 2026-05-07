@@ -68,4 +68,31 @@ const sendReimbursementNotification = async (to, name, event, reimbursement) => 
   })
 }
 
-module.exports = { sendVerificationEmail, sendReimbursementNotification }
+const sendPasswordResetEmail = async (to, name, token, userId) => {
+  const resetUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/reset-password?token=${token}&id=${userId}`
+
+  await transporter.sendMail({
+    from: `"SalesPilot" <${process.env.SMTP_FROM || process.env.SMTP_USER}>`,
+    to,
+    subject: 'Reset your SalesPilot password',
+    html: `
+      <div style="font-family:Arial,sans-serif;max-width:520px;margin:auto;padding:32px;border:1px solid #e2e8f0;border-radius:8px;">
+        <h2 style="color:#4f46e5;margin-bottom:8px;">Reset your password</h2>
+        <p style="color:#475569;line-height:1.6;">
+          Hi ${name}, we received a request to reset your SalesPilot password.
+          Click the button below to set a new password. This link expires in <strong>1 hour</strong>.
+        </p>
+        <a href="${resetUrl}"
+           style="display:inline-block;margin:24px 0;padding:12px 28px;background:#4f46e5;color:#fff;border-radius:6px;text-decoration:none;font-weight:600;">
+          Reset Password
+        </a>
+        <p style="color:#94a3b8;font-size:12px;">
+          If you didn't request a password reset, you can safely ignore this email.<br/>
+          Or copy this link: <a href="${resetUrl}" style="color:#4f46e5;">${resetUrl}</a>
+        </p>
+      </div>
+    `,
+  })
+}
+
+module.exports = { sendVerificationEmail, sendReimbursementNotification, sendPasswordResetEmail }

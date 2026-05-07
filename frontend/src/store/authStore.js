@@ -10,6 +10,7 @@ const useAuthStore = create((set) => ({
   user: null,
   token: null,
   isAuthenticated: false,
+  initialized: false,
 
   login: async (email, password) => {
     const { data } = await api.post('/auth/login', { email, password })
@@ -34,11 +35,14 @@ const useAuthStore = create((set) => ({
     if (token && raw) {
       try {
         const user = JSON.parse(raw)
-        set({ token, user, isAuthenticated: true })
+        set({ token, user, isAuthenticated: true, initialized: true })
       } catch {
         localStorage.removeItem('crm_token')
         localStorage.removeItem('crm_user')
+        set({ initialized: true })
       }
+    } else {
+      set({ initialized: true })
     }
   },
 

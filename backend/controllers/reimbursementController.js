@@ -1,4 +1,5 @@
 const Reimbursement = require('../models/Reimbursement')
+const Project = require('../models/Project')
 const { sendReimbursementNotification } = require('../utils/mailer')
 const { createNotification } = require('../utils/notify')
 
@@ -37,6 +38,18 @@ const createReimbursement = async (req, res) => {
       ...(projectId ? { project: projectId } : {}),
     })
     await reimbursement.populate('submittedBy', 'name email role')
+
+    if (projectId) {
+      const project = await Project.findById(projectId)
+      if (project && project.projectHead) {
+        createNotification({
+          recipientId: project.projectHead,
+          message:     `New reimbursement request submitted for project "${project.title}" by ${req.user.name}`,
+          type:        'reimbursement',
+          link:        `/reimbursements/${reimbursement._id}`,
+        })
+      }
+    }
 
     res.status(201).json(reimbursement)
   } catch (err) {

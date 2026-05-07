@@ -30,6 +30,10 @@ export default function LeadDetail() {
   const [form, setForm] = useState(null)
   const [saving, setSaving] = useState(false)
 
+  const [followUpDate, setFollowUpDate]       = useState('')
+  const [savingFollowUp, setSavingFollowUp]   = useState(false)
+  const [followUpSaved, setFollowUpSaved]     = useState(false)
+
   // Convert to Project
   const [showConvertModal, setShowConvertModal] = useState(false)
   const [convertForm, setConvertForm] = useState({ projectHeadId: '', budget: '' })
@@ -40,7 +44,10 @@ export default function LeadDetail() {
   const lead = leads.find((l) => l._id === id)
 
   useEffect(() => {
-    if (lead) setForm({ title: lead.title, contactName: lead.contactName || '', contactEmail: lead.contactEmail || '', contactPhone: lead.contactPhone || '', dealValue: lead.dealValue || 0, notes: lead.notes || '', status: lead.status })
+    if (lead) {
+      setForm({ title: lead.title, contactName: lead.contactName || '', contactEmail: lead.contactEmail || '', contactPhone: lead.contactPhone || '', dealValue: lead.dealValue || 0, notes: lead.notes || '', status: lead.status })
+      setFollowUpDate(lead.followUpDate ? lead.followUpDate.slice(0, 10) : '')
+    }
   }, [lead])
 
   const canConvert = ['finance_head', 'admin'].includes(user?.role) && lead?.status === 'Won'
@@ -100,6 +107,14 @@ export default function LeadDetail() {
 
   const handleStatusChange = async (e) => {
     await updateLeadStatus(id, e.target.value)
+  }
+
+  const handleSaveFollowUp = async () => {
+    setSavingFollowUp(true)
+    await updateLead(id, { followUpDate: followUpDate || null })
+    setSavingFollowUp(false)
+    setFollowUpSaved(true)
+    setTimeout(() => setFollowUpSaved(false), 2000)
   }
 
   return (
@@ -224,6 +239,34 @@ export default function LeadDetail() {
             <div className="text-2xl font-bold text-slate-900 mb-1">{formatCurrency(lead.dealValue)}</div>
             <p className="text-xs text-slate-500">Potential deal value</p>
           </Card>
+
+          {lead.status !== 'Won' && lead.status !== 'Lost' && (
+            <Card title="Follow-up Date">
+              <div className="space-y-2">
+                <input
+                  type="date"
+                  value={followUpDate}
+                  onChange={(e) => setFollowUpDate(e.target.value)}
+                  className="w-full px-3 py-2 text-sm rounded-md border border-surface-border focus:outline-none focus:border-brand-primary focus:ring-2 focus:ring-brand-light"
+                />
+                <div className="flex items-center gap-2">
+                  <Button size="sm" onClick={handleSaveFollowUp} loading={savingFollowUp} disabled={followUpDate === (lead.followUpDate ? lead.followUpDate.slice(0, 10) : '')}>
+                    Save
+                  </Button>
+                  {followUpDate && (
+                    <button
+                      type="button"
+                      onClick={() => setFollowUpDate('')}
+                      className="text-xs text-slate-400 hover:text-slate-600 transition-colors"
+                    >
+                      Clear
+                    </button>
+                  )}
+                  {followUpSaved && <span className="text-xs text-emerald-600">Saved</span>}
+                </div>
+              </div>
+            </Card>
+          )}
         </div>
       </div>
 

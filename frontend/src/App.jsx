@@ -20,13 +20,16 @@ import ProjectDetail from './pages/ProjectDetail'
 import Reimbursements from './pages/Reimbursements'
 import NewReimbursement from './pages/NewReimbursement'
 import ReimbursementDetail from './pages/ReimbursementDetail'
+import ForgotPassword from './pages/ForgotPassword'
+import ResetPassword from './pages/ResetPassword'
 
 const FH_ADMIN           = ['finance_head', 'admin']
 const FH_ADMIN_MGR       = ['finance_head', 'admin', 'manager']
 const FH_ADMIN_MGR_SALES = ['finance_head', 'admin', 'manager', 'sales']
 
 function ProtectedRoute({ children, roles }) {
-  const { isAuthenticated, user } = useAuthStore()
+  const { isAuthenticated, initialized, user } = useAuthStore()
+  if (!initialized) return null
   if (!isAuthenticated) return <Navigate to="/login" replace />
   if (roles && !roles.includes(user?.role)) return <Navigate to="/dashboard" replace />
   return children
@@ -53,9 +56,11 @@ export default function App() {
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/login"        element={<Login />} />
-        <Route path="/register"     element={<Register />} />
-        <Route path="/verify-email" element={<VerifyEmail />} />
+        <Route path="/login"            element={<Login />} />
+        <Route path="/register"         element={<Register />} />
+        <Route path="/verify-email"     element={<VerifyEmail />} />
+        <Route path="/forgot-password"  element={<ForgotPassword />} />
+        <Route path="/reset-password"   element={<ResetPassword />} />
 
         <Route path="/dashboard" element={
           <ProtectedRoute><Dashboard /></ProtectedRoute>

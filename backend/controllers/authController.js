@@ -1,7 +1,7 @@
 const crypto = require('crypto')
 const jwt = require('jsonwebtoken')
 const User = require('../models/User')
-const { sendVerificationEmail } = require('../utils/mailer')
+const { sendVerificationEmail, sendPasswordResetEmail } = require('../utils/mailer')
 
 const signToken = (id) =>
   jwt.sign({ id }, process.env.JWT_SECRET, { expiresIn: '7d' })
@@ -107,4 +107,87 @@ const getMe = async (req, res) => {
   res.json(req.user)
 }
 
-module.exports = { register, verifyEmail, login, getMe }
+// ── Change password (auth required) ──────────────────────────────────────────
+const changePassword = async (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({ message: 'currentPassword and newPassword are required' })
+    }
+    if (newPassword.length < 6 || newPassword.length > 128) {
+      return res.status(400).json({ message: 'New password must be 6–128 characters' })
+    }
+
+    const user = await User.findById(req.user._id).select('+password')
+    const match = await user.matchPassword(currentPassword)
+    if (!match) return res.status(400).json({ message: 'Current password is incorrect' })
+
+    user.password = newPassword
+    await user.save()
+    res.json({ message: 'Password updated successfully' })
+  } catch (err) {
+    res.status(500).json({ message: err.message })
+  }
+}
+
+// ── Forgot password ────────────────────────────────────────────────────────────
+const forgotPassword = async (req, res) => {
+  try {
+    const { email } = req.body
+
+    const user = await User.findOne({ email: email?.toLowerCase().trim() })
+    if (!user) {
+      // Always 200 to prevent email enumeration
+      return res.json({ message: 'If that email is registered, a reset link has been sent.' })
+    }
+
+    const rawToken = crypto.randomBytes(32).toString('hex')
+    const hashedToken = crypto.createHash('sha256').update(rawToken).digest('hex')
+
+    user.resetPasswordToken   = hashedToken
+    user.resetPasswordExpires = new Date(Date.now() + 60 * 60 * 1000) // 1 hour
+    await user.save()
+
+    sendPasswordResetEmail(user.email, user.name, rawToken, user._id.toString()).catch((err) =>
+      console.error('[mailer] Failed to send reset email:', err.message)
+    )
+
+    res.json({ message: 'If that email is registered, a reset link has been sent.' })
+  } catch (err) {
+    res.status(500).json({ message: err.message })
+  }
+}
+
+// ── Reset password ─────────────────────────────────────────────────────────────
+const resetPassword = async (req, res) => {
+  try {
+    const { token, userId, newPassword } = req.body
+    if (!token || !userId || !newPassword) {
+      return res.status(400).json({ message: 'token, userId, and newPassword are required' })
+    }
+    if (newPassword.length < 6 || newPassword.length > 128) {
+      return res.status(400).json({ message: 'Password must be 6–128 characters' })
+    }
+
+    const hashedToken = crypto.createHash('sha256').update(token).digest('hex')
+
+    const user = await User.findOne({
+      _id:                  userId,
+      resetPasswordToken:   hashedToken,
+      resetPasswordExpires: { $gt: Date.now() },
+    })
+
+    if (!user) return res.status(400).json({ message: 'Reset link is invalid or has expired.' })
+
+    user.password             = newPassword
+    user.resetPasswordToken   = null
+    user.resetPasswordExpires = null
+    await user.save()
+
+    res.json({ message: 'Password reset successfully. You can now log in.' })
+  } catch (err) {
+    res.status(500).json({ message: err.message })
+  }
+}
+
+module.exports = { register, verifyEmail, login, getMe, changePassword, forgotPassword, resetPassword }

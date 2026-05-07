@@ -3,7 +3,7 @@ const {
   getProjects, getProject, updateProjectStatus,
   addProgressUpdate, logExpense, completeProject,
 } = require('../controllers/projectController')
-const { getProjectPulls } = require('../controllers/manpowerController')
+const { getProjectPulls, createProjectPull } = require('../controllers/manpowerController')
 const { protect } = require('../middleware/authMiddleware')
 const { requireRole } = require('../middleware/roleMiddleware')
 const { projectStatusRules, progressUpdateRules, expenseRules, mongoId } = require('../middleware/validators')
@@ -17,6 +17,7 @@ router.patch('/:id/status',  [mongoId(), ...projectStatusRules],  validate, upda
 router.post('/:id/progress', [mongoId(), ...progressUpdateRules], validate, addProgressUpdate)
 router.post('/:id/expenses', [mongoId(), ...expenseRules],        validate, logExpense)
 router.patch('/:id/complete',  mongoId(), validate, requireRole('finance_head', 'admin'), completeProject)
-router.get('/:id/manpower',   mongoId(), validate, getProjectPulls)
+router.get('/:id/manpower',  mongoId(), validate, getProjectPulls)
+router.post('/:id/manpower', mongoId(), validate, createProjectPull)
 
 module.exports = router

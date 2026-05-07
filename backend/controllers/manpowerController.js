@@ -104,6 +104,9 @@ const createProjectPull = async (req, res) => {
       if (!emp || !['employee', 'sales'].includes(emp.role)) {
         return res.status(400).json({ message: 'Only employee and sales users can be pulled into projects' })
       }
+      if (project.teamMembers.some(m => m.toString() === pulledEmployee.toString())) {
+        return res.status(400).json({ message: 'Employee is already in the project team' })
+      }
       employeeId = pulledEmployee
       await Project.findByIdAndUpdate(projectId, { $addToSet: { teamMembers: pulledEmployee } })
       createNotification({

@@ -33,7 +33,7 @@ app.use(express.urlencoded({ extended: false, limit: '20kb' }))
 app.use(cookieParser())
 
 // ── General rate limiting (auth routes have their own — see authRoutes.js) ───
-app.use('/api', generalLimiter)
+// app.use('/api', generalLimiter) // Temporarily disabled for testing
 
 // ── Routes ───────────────────────────────────────────────────────────────────
 app.use('/api/auth',      require('./routes/authRoutes'))
@@ -45,12 +45,13 @@ app.use('/api/departments',    require('./routes/departmentRoutes'))
 app.use('/api/projects',      require('./routes/projectRoutes'))
 app.use('/api/reimbursements',  require('./routes/reimbursementRoutes'))
 app.use('/api/notifications',  require('./routes/notificationRoutes'))
+app.use('/api/milestones',     require('./routes/milestoneRoutes'))
 
 // ── Health check ─────────────────────────────────────────────────────────────
 app.get('/api/health', (_req, res) => res.json({ status: 'ok' }))
 
 // ── 404 ──────────────────────────────────────────────────────────────────────
-app.use((_req, res) => res.status(404).json({ message: 'Route not found' }))
+app.use((req, res) => res.status(404).json({ message: `Route not found: ${req.method} ${req.originalUrl}` }))
 
 // ── Global error handler ─────────────────────────────────────────────────────
 app.use((err, _req, res, _next) => {

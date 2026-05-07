@@ -10,9 +10,11 @@ const userSchema = new mongoose.Schema({
   isVerified: { type: Boolean, default: false },
   verificationToken:   { type: String, default: null },
   verificationExpires: { type: Date,   default: null },
-  failedLoginAttempts: { type: Number, default: 0 },
-  lockUntil:{ type: Date, default: null },
-  createdAt:{ type: Date, default: Date.now },
+  failedLoginAttempts:   { type: Number, default: 0 },
+  lockUntil:             { type: Date,   default: null },
+  resetPasswordToken:    { type: String, default: null },
+  resetPasswordExpires:  { type: Date,   default: null },
+  createdAt:             { type: Date,   default: Date.now },
 })
 
 // Hash password before save
@@ -34,6 +36,8 @@ userSchema.methods.toJSON = function () {
   delete obj.verificationExpires
   delete obj.failedLoginAttempts
   delete obj.lockUntil
+  delete obj.resetPasswordToken
+  delete obj.resetPasswordExpires
   return obj
 }
 
