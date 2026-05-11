@@ -38,6 +38,10 @@ const createReimbursement = async (req, res) => {
       return res.status(400).json({ message: 'At least one item is required' })
     }
 
+    if (items.length > 50) {
+      return res.status(400).json({ message: 'A reimbursement cannot have more than 50 items' })
+    }
+
     const invalidItem = items.find((i) => !i.description?.trim() || !(Number(i.amount) > 0))
     if (invalidItem) {
       return res.status(400).json({ message: 'Each item needs a description and amount greater than 0' })

@@ -25,6 +25,7 @@ export default function NewReimbursement() {
   const [submitting, setSubmitting] = useState(false)
   const [error, setError]         = useState('')
   const [proofFiles, setProofFiles] = useState([])
+  const [previewUrls, setPreviewUrls] = useState([])
 
   const handleFileChange = (e) => {
     const picked = Array.from(e.target.files)
@@ -32,10 +33,27 @@ export default function NewReimbursement() {
       const combined = [...prev, ...picked]
       return combined.slice(0, 10)
     })
+    setPreviewUrls((prev) => {
+      const newUrls = picked.map((f) => URL.createObjectURL(f))
+      const combined = [...prev, ...newUrls]
+      if (combined.length > 10) {
+        combined.slice(10).forEach((url) => URL.revokeObjectURL(url))
+        return combined.slice(0, 10)
+      }
+      return combined
+    })
     e.target.value = ''
   }
 
-  const removeFile = (index) => setProofFiles((prev) => prev.filter((_, i) => i !== index))
+  const removeFile = (index) => {
+    URL.revokeObjectURL(previewUrls[index])
+    setProofFiles((prev) => prev.filter((_, i) => i !== index))
+    setPreviewUrls((prev) => prev.filter((_, i) => i !== index))
+  }
+
+  useEffect(() => {
+    return () => { previewUrls.forEach((url) => URL.revokeObjectURL(url)) }
+  }, [])
 
   useEffect(() => {
     if (!prefilledProjectId) return
@@ -190,11 +208,11 @@ export default function NewReimbursement() {
 
             {proofFiles.length > 0 && (
               <div className="flex flex-wrap gap-2">
-                {proofFiles.map((file, i) => (
+                {proofFiles.map((_file, i) => (
                   <div key={i} className="relative group">
                     <img
-                      src={URL.createObjectURL(file)}
-                      alt={file.name}
+                      src={previewUrls[i]}
+                      alt={`Proof ${i + 1}`}
                       className="w-20 h-20 object-cover rounded-lg border border-surface-border"
                     />
                     <button

@@ -173,6 +173,9 @@ const convertToProject = async (req, res) => {
     ])
     res.status(201).json(project)
   } catch (err) {
+    if (err.code === 11000) {
+      return res.status(409).json({ message: 'A project with this ID already exists. Please try again.' })
+    }
     res.status(500).json({ message: err.message })
   }
 }
