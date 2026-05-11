@@ -36,10 +36,11 @@ export default function LeadDetail() {
 
   // Convert to Project
   const [showConvertModal, setShowConvertModal] = useState(false)
-  const [convertForm, setConvertForm] = useState({ projectHeadId: '', budget: '' })
+  const [convertForm, setConvertForm] = useState({ projectHeadId: '', departmentId: '', budget: '' })
   const [converting, setConverting] = useState(false)
   const [convertError, setConvertError] = useState('')
   const [users, setUsers] = useState([])
+  const [departments, setDepartments] = useState([])
 
   const lead = leads.find((l) => l._id === id)
 
@@ -54,13 +55,15 @@ export default function LeadDetail() {
 
   const openConvertModal = async () => {
     setConvertError('')
-    setConvertForm({ projectHeadId: '', budget: lead?.dealValue || '' })
-    if (users.length === 0) {
-      try {
-        const { data } = await api.get('/users?role=manager')
-        setUsers(data)
-      } catch (_) {}
-    }
+    setConvertForm({ projectHeadId: '', departmentId: '', budget: lead?.dealValue || '' })
+    try {
+      const [managersRes, deptsRes] = await Promise.all([
+        users.length === 0 ? api.get('/users?role=manager') : Promise.resolve({ data: users }),
+        departments.length === 0 ? api.get('/departments') : Promise.resolve({ data: departments }),
+      ])
+      if (users.length === 0) setUsers(managersRes.data)
+      if (departments.length === 0) setDepartments(deptsRes.data.filter((d) => d.isActive))
+    } catch (_) {}
     setShowConvertModal(true)
   }
 
@@ -69,12 +72,17 @@ export default function LeadDetail() {
       setConvertError('Select a project head.')
       return
     }
+    if (!convertForm.departmentId) {
+      setConvertError('Select a department.')
+      return
+    }
     setConverting(true)
     setConvertError('')
     try {
       const project = await convertLead(id, {
         projectHeadId: convertForm.projectHeadId,
-        budget: Number(convertForm.budget) || 0,
+        departmentId:  convertForm.departmentId,
+        budget:        Number(convertForm.budget) || 0,
       })
       setShowConvertModal(false)
       navigate(`/projects/${project._id}`)
@@ -276,26 +284,38 @@ export default function LeadDetail() {
           {convertError && (
             <div className="px-3 py-2 bg-red-50 border border-red-200 text-red-700 rounded-md text-sm">{convertError}</div>
           )}
-          <div className="flex flex-col gap-1">
-            <label className="text-xs font-medium text-slate-600 uppercase tracking-wide">Project Head <span className="text-status-lost">*</span></label>
-            <select
-              value={convertForm.projectHeadId}
-              onChange={(e) => setConvertForm((f) => ({ ...f, projectHeadId: e.target.value }))}
-              className="w-full px-3 py-2 text-sm rounded-md border border-surface-border bg-white focus:outline-none focus:border-brand-primary"
-            >
-              <option value="">Select a user…</option>
-              {users.map((u) => (
-                <option key={u._id} value={u._id}>{u.name} ({u.role})</option>
-              ))}
-            </select>
+          <div className="space-y-3 mb-4">
+            <div>
+              <label className="text-xs font-medium text-slate-600 uppercase tracking-wide block mb-1">Project Head</label>
+              <select
+                value={convertForm.projectHeadId}
+                onChange={(e) => setConvertForm((f) => ({ ...f, projectHeadId: e.target.value }))}
+                className="w-full px-3 py-2 text-sm rounded-md border border-surface-border bg-white focus:outline-none focus:border-brand-primary"
+              >
+                <option value="">Select a manager</option>
+                {users.map((u) => <option key={u._id} value={u._id}>{u.name}</option>)}
+              </select>
+            </div>
+
+            <div>
+              <label className="text-xs font-medium text-slate-600 uppercase tracking-wide block mb-1">Department</label>
+              <select
+                value={convertForm.departmentId}
+                onChange={(e) => setConvertForm((f) => ({ ...f, departmentId: e.target.value }))}
+                className="w-full px-3 py-2 text-sm rounded-md border border-surface-border bg-white focus:outline-none focus:border-brand-primary"
+              >
+                <option value="">Select a department</option>
+                {departments.map((d) => <option key={d._id} value={d._id}>{d.name} ({d.code})</option>)}
+              </select>
+            </div>
+
+            <Input
+              label="Budget (₹)"
+              type="number"
+              value={convertForm.budget}
+              onChange={(e) => setConvertForm((f) => ({ ...f, budget: e.target.value }))}
+            />
           </div>
-          <Input
-            label="Budget (₹)"
-            type="number"
-            value={convertForm.budget}
-            onChange={(e) => setConvertForm((f) => ({ ...f, budget: e.target.value }))}
-            placeholder="0"
-          />
           <div className="flex justify-end gap-2 pt-1">
             <Button variant="secondary" size="sm" onClick={() => setShowConvertModal(false)}>Cancel</Button>
             <Button variant="primary" size="sm" loading={converting} onClick={handleConvert}>Create Project</Button>
