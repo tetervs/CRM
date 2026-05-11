@@ -27,14 +27,32 @@ const getReimbursements = async (req, res) => {
 
 const createReimbursement = async (req, res) => {
   try {
-    const { items, notes, projectId } = req.body
-    const totalAmount = items.reduce((sum, item) => sum + Number(item.amount), 0)
+    let items
+    try {
+      items = typeof req.body.items === 'string' ? JSON.parse(req.body.items) : req.body.items
+    } catch {
+      return res.status(400).json({ message: 'items must be a valid JSON array' })
+    }
+
+    if (!Array.isArray(items) || items.length === 0) {
+      return res.status(400).json({ message: 'At least one item is required' })
+    }
+
+    const validItems = items.filter((i) => i.description?.trim() && Number(i.amount) > 0)
+    if (validItems.length === 0) {
+      return res.status(400).json({ message: 'Each item needs a description and amount greater than 0' })
+    }
+
+    const { notes, projectId } = req.body
+    const totalAmount = validItems.reduce((sum, item) => sum + Number(item.amount), 0)
+    const proofFiles  = (req.files || []).map((f) => f.path)
 
     const reimbursement = await Reimbursement.create({
       submittedBy: req.user._id,
-      items: items.map((i) => ({ description: i.description, amount: Number(i.amount) })),
+      items: validItems.map((i) => ({ description: i.description, amount: Number(i.amount) })),
       totalAmount,
       notes,
+      proofFiles,
       ...(projectId ? { project: projectId } : {}),
     })
     await reimbursement.populate('submittedBy', 'name email role')
