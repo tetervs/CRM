@@ -118,9 +118,12 @@ const updateStatus = async (req, res) => {
 
 const convertToProject = async (req, res) => {
   try {
-    const Project = require('../models/Project')
-    const User    = require('../models/User')
-    const { projectHeadId, budget } = req.body
+    const Project    = require('../models/Project')
+    const User       = require('../models/User')
+    const Department = require('../models/Department')
+    const { generateProjectId } = require('../utils/projectId')
+
+    const { projectHeadId, budget, departmentId } = req.body
 
     const lead = await Lead.findById(req.params.id)
     if (!lead) return res.status(404).json({ message: 'Lead not found' })
@@ -134,10 +137,20 @@ const convertToProject = async (req, res) => {
       return res.status(400).json({ message: 'Project head must be a manager' })
     }
 
+    const dept = await Department.findById(departmentId)
+    if (!dept || !dept.isActive) {
+      return res.status(400).json({ message: 'Department not found or inactive' })
+    }
+
+    const count     = await Project.countDocuments({ department: departmentId })
+    const projectId = generateProjectId(dept.code, count)
+
     const project = await Project.create({
       title:       lead.title,
       lead:        lead._id,
       projectHead: projectHeadId,
+      department:  departmentId,
+      projectId,
       budget:      Number(budget) || 0,
     })
 
@@ -154,7 +167,10 @@ const convertToProject = async (req, res) => {
       link:        `/projects/${project._id}`,
     })
 
-    await project.populate('projectHead', 'name email')
+    await project.populate([
+      { path: 'projectHead', select: 'name email' },
+      { path: 'department',  select: 'name code' },
+    ])
     res.status(201).json(project)
   } catch (err) {
     res.status(500).json({ message: err.message })
