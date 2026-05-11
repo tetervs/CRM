@@ -58,7 +58,8 @@ app.use((err, _req, res, _next) => {
   // Don't leak stack traces to the client in production
   const isDev = process.env.NODE_ENV !== 'production'
   console.error(err.stack)
-  res.status(err.status || 500).json({
+  const status = err.code?.startsWith('LIMIT_') ? 400 : (err.status || 500)
+  res.status(status).json({
     message: err.message || 'Internal server error',
     ...(isDev && { stack: err.stack }),
   })

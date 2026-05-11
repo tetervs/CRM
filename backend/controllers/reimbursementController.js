@@ -38,12 +38,29 @@ const createReimbursement = async (req, res) => {
       return res.status(400).json({ message: 'At least one item is required' })
     }
 
-    const validItems = items.filter((i) => i.description?.trim() && Number(i.amount) > 0)
-    if (validItems.length === 0) {
+    const invalidItem = items.find((i) => !i.description?.trim() || !(Number(i.amount) > 0))
+    if (invalidItem) {
       return res.status(400).json({ message: 'Each item needs a description and amount greater than 0' })
+    }
+    const validItems = items
+
+    const longDesc = items.find((i) => i.description.trim().length > 200)
+    if (longDesc) {
+      return res.status(400).json({ message: 'Item description must be at most 200 characters' })
     }
 
     const { notes, projectId } = req.body
+    if (notes && notes.length > 1000) {
+      return res.status(400).json({ message: 'Notes must be at most 1000 characters' })
+    }
+
+    if (projectId) {
+      const mongoose = require('mongoose')
+      if (!mongoose.Types.ObjectId.isValid(projectId)) {
+        return res.status(400).json({ message: 'projectId must be a valid ID' })
+      }
+    }
+
     const totalAmount = validItems.reduce((sum, item) => sum + Number(item.amount), 0)
     const proofFiles  = (req.files || []).map((f) => f.path)
 
