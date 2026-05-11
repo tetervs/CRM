@@ -63,7 +63,12 @@ export default function Projects() {
                 className="bg-surface-card border border-surface-border rounded-xl p-5 cursor-pointer hover:shadow-md hover:border-brand-primary/30 transition-all"
               >
                 <div className="flex items-start justify-between gap-2 mb-3">
-                  <h3 className="text-sm font-semibold text-slate-900 leading-snug line-clamp-2">{project.title}</h3>
+                  <div className="min-w-0">
+                    <h3 className="text-sm font-semibold text-slate-900 leading-snug line-clamp-2">{project.title}</h3>
+                    {project.projectId && (
+                      <p className="font-mono text-xs text-slate-400 mt-0.5">{project.projectId}</p>
+                    )}
+                  </div>
                   <span className={`shrink-0 px-2 py-0.5 rounded-full text-xs font-medium ${statusStyle[project.status] || 'bg-slate-100 text-slate-600'}`}>
                     {project.status}
                   </span>
