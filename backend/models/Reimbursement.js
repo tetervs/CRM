@@ -19,6 +19,7 @@ const reimbursementSchema = new mongoose.Schema({
   paidBy:            { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   paidAt:            { type: Date },
   project:           { type: mongoose.Schema.Types.ObjectId, ref: 'Project' },
+  proofFiles:        [{ type: String }],
 }, { timestamps: true })
 
 reimbursementSchema.index({ submittedBy: 1, status: 1 })
