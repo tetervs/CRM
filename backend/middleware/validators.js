@@ -194,6 +194,9 @@ const convertLeadRules = [
   body('projectHeadId')
     .notEmpty().withMessage('Project head is required')
     .isMongoId().withMessage('projectHeadId must be a valid ID'),
+  body('departmentId')
+    .notEmpty().withMessage('Department is required')
+    .isMongoId().withMessage('departmentId must be a valid ID'),
   body('budget')
     .optional()
     .isFloat({ min: 0 }).withMessage('Budget must be a non-negative number'),
