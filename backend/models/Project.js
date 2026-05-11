@@ -17,6 +17,8 @@ const projectSchema = new mongoose.Schema({
   title:           { type: String, required: true, trim: true },
   lead:            { type: mongoose.Schema.Types.ObjectId, ref: 'Lead', required: true },
   projectHead:     { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  department:      { type: mongoose.Schema.Types.ObjectId, ref: 'Department', required: true },
+  projectId:       { type: String, unique: true, sparse: true },
   status:          { type: String, enum: ['Active', 'On Hold', 'Completed'], default: 'Active' },
   teamMembers:     [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
   budget:          { type: Number, default: 0, min: 0 },
