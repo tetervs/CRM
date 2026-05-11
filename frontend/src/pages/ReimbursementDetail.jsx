@@ -121,6 +121,22 @@ export default function ReimbursementDetail() {
             </Card>
           )}
 
+          {r.proofFiles?.length > 0 && (
+            <Card title="Proof of Spending">
+              <div className="flex flex-wrap gap-2">
+                {r.proofFiles.map((url, i) => (
+                  <a key={i} href={url} target="_blank" rel="noopener noreferrer" className="shrink-0">
+                    <img
+                      src={url}
+                      alt={`Proof ${i + 1}`}
+                      className="w-20 h-20 object-cover rounded-lg border border-surface-border hover:opacity-80 transition-opacity"
+                    />
+                  </a>
+                ))}
+              </div>
+            </Card>
+          )}
+
           {r.status === 'Rejected' && r.rejectionReason && (
             <div className="px-4 py-3 bg-red-50 border border-red-200 rounded-lg">
               <p className="text-xs font-medium text-red-700 uppercase tracking-wide mb-1">Rejection Reason</p>
