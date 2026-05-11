@@ -31,6 +31,7 @@ const getProjects = async (req, res) => {
       .populate('projectHead', 'name email')
       .populate('teamMembers', 'name email')
       .populate('lead', 'title')
+      .populate('department', 'name code')
       .sort({ createdAt: -1 })
 
     res.json(projects)
@@ -47,6 +48,7 @@ const getProject = async (req, res) => {
       .populate('lead', 'title status dealValue')
       .populate('expenses.loggedBy', 'name')
       .populate('progressUpdates.updatedBy', 'name')
+      .populate('department', 'name code')
 
     if (!project) return res.status(404).json({ message: 'Project not found' })
     if (!canAccess(project, req.user._id, req.user.role)) {
