@@ -5,13 +5,14 @@ const {
 } = require('../controllers/reimbursementController')
 const { protect } = require('../middleware/authMiddleware')
 const { requireRole } = require('../middleware/roleMiddleware')
-const { reimbursementCreateRules, reimbursementActionRules, mongoId } = require('../middleware/validators')
+const { reimbursementActionRules, mongoId } = require('../middleware/validators')
 const validate = require('../middleware/validate')
+const upload = require('../middleware/upload')
 
 router.use(protect)
 
 router.get('/',    getReimbursements)
-router.post('/',   reimbursementCreateRules, validate, createReimbursement)
+router.post('/',   upload.array('proofFiles', 10), createReimbursement)
 router.get('/:id', mongoId(), validate, getReimbursement)
 
 router.patch('/:id/head-approve',
