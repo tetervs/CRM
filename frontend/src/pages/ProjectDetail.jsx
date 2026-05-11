@@ -220,7 +220,16 @@ export default function ProjectDetail() {
         </button>
         <div className="flex-1 min-w-0">
           <h2 className="text-lg font-bold text-slate-900 truncate">{project.title}</h2>
-          {project.lead && <p className="text-sm text-slate-500">Lead: {project.lead.title}</p>}
+          <div className="flex items-center gap-2 mt-0.5">
+            {project.projectId && (
+              <span className="font-mono text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded">
+                {project.projectId}
+              </span>
+            )}
+            {project.department?.name && (
+              <span className="text-xs text-slate-400">{project.department.name}</span>
+            )}
+          </div>
         </div>
         <span className={`shrink-0 px-2.5 py-1 rounded-full text-xs font-medium ${STATUS_STYLE[project.status] || 'bg-slate-100 text-slate-600'}`}>
           {project.status}
