@@ -24,6 +24,18 @@ export default function NewReimbursement() {
   const [notes, setNotes]         = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [error, setError]         = useState('')
+  const [proofFiles, setProofFiles] = useState([])
+
+  const handleFileChange = (e) => {
+    const picked = Array.from(e.target.files)
+    setProofFiles((prev) => {
+      const combined = [...prev, ...picked]
+      return combined.slice(0, 10)
+    })
+    e.target.value = ''
+  }
+
+  const removeFile = (index) => setProofFiles((prev) => prev.filter((_, i) => i !== index))
 
   useEffect(() => {
     if (!prefilledProjectId) return
@@ -52,9 +64,13 @@ export default function NewReimbursement() {
     }
     setSubmitting(true)
     try {
-      const payload = { items: validItems, notes }
-      if (prefilledProjectId) payload.projectId = prefilledProjectId
-      const result = await createReimbursement(payload)
+      const fd = new FormData()
+      fd.append('items', JSON.stringify(validItems))
+      if (notes) fd.append('notes', notes)
+      if (prefilledProjectId) fd.append('projectId', prefilledProjectId)
+      proofFiles.forEach((file) => fd.append('proofFiles', file))
+
+      const result = await createReimbursement(fd)
       navigate(`/reimbursements/${result._id}`)
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to submit reimbursement')
@@ -152,6 +168,49 @@ export default function NewReimbursement() {
             placeholder="Any additional context for your reviewer..."
             className="w-full px-3 py-2 text-sm rounded-md border border-surface-border focus:outline-none focus:border-brand-primary focus:ring-2 focus:ring-brand-light resize-none"
           />
+        </Card>
+
+        <Card title="Proof of Spending (optional)">
+          <div className="space-y-3">
+            {proofFiles.length < 10 && (
+              <label className="flex items-center gap-2 cursor-pointer text-sm text-brand-primary hover:text-brand-hover font-medium">
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                </svg>
+                Add images ({proofFiles.length}/10)
+                <input
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  className="hidden"
+                  onChange={handleFileChange}
+                />
+              </label>
+            )}
+
+            {proofFiles.length > 0 && (
+              <div className="flex flex-wrap gap-2">
+                {proofFiles.map((file, i) => (
+                  <div key={i} className="relative group">
+                    <img
+                      src={URL.createObjectURL(file)}
+                      alt={file.name}
+                      className="w-20 h-20 object-cover rounded-lg border border-surface-border"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => removeFile(i)}
+                      className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-red-500 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                    >
+                      <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </Card>
 
         <div className="flex justify-end gap-3">
