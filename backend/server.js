@@ -18,9 +18,17 @@ connectDB().then(() => seedDepartments())
 app.use(helmet())
 app.use(morgan('combined'))
 
-// ── CORS — strict allowlist ──────────────────────────────────────────────────
+// ── CORS ─────────────────────────────────────────────────────────────────────
+const allowedOrigins = [
+  process.env.FRONTEND_URL,
+  'http://localhost:5173',
+].filter(Boolean)
+
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:5173',
+  origin: (origin, cb) => {
+    if (!origin || allowedOrigins.includes(origin)) return cb(null, true)
+    cb(new Error('CORS: origin not allowed'))
+  },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
