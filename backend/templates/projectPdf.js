@@ -50,6 +50,7 @@ const renderProjectPdf = (project, reimbursements, manpowerPulls, branding) => {
       const chunks = []
       doc.on('data',  (c) => chunks.push(c))
       doc.on('error', reject)
+      doc.on('end',   () => resolve(Buffer.concat(chunks)))
 
       drawBanner(doc, branding)
       doc.on('pageAdded', () => drawBanner(doc, branding))
@@ -219,8 +220,6 @@ const renderProjectPdf = (project, reimbursements, manpowerPulls, branding) => {
       addPageNumbers(doc)
       doc.flushPages()
       doc.end()
-
-      doc.on('end', () => resolve(Buffer.concat(chunks)))
     } catch (err) {
       reject(err)
     }

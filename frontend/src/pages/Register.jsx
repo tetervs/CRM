@@ -88,7 +88,7 @@ export default function Register() {
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <Input label="Full name" name="name" placeholder="Jane Smith" value={form.name} onChange={handleChange} error={errors.name} required />
-            <Input label="Email" name="email" type="email" placeholder="jane@in-quest.co.in" value={form.email} onChange={handleChange} error={errors.email} required />
+            <Input label="Email" name="email" type="email" placeholder="jane@inquest.global" value={form.email} onChange={handleChange} error={errors.email} required />
             <Input label="Password" name="password" type="password" placeholder="••••••••" value={form.password} onChange={handleChange} error={errors.password} required />
             <Input label="Confirm password" name="confirm" type="password" placeholder="••••••••" value={form.confirm} onChange={handleChange} error={errors.confirm} required />
 

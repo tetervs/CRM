@@ -18,6 +18,7 @@ const renderLeadPdf = (lead, branding) => {
       const chunks = []
       doc.on('data',  (c) => chunks.push(c))
       doc.on('error', reject)
+      doc.on('end',   () => resolve(Buffer.concat(chunks)))
 
       // Banner on first page; repeat on subsequent pages via event
       drawBanner(doc, branding)
@@ -95,8 +96,6 @@ const renderLeadPdf = (lead, branding) => {
       addPageNumbers(doc)
       doc.flushPages()
       doc.end()
-
-      doc.on('end', () => resolve(Buffer.concat(chunks)))
     } catch (err) {
       reject(err)
     }

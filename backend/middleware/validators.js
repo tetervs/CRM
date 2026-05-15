@@ -7,7 +7,10 @@ const mongoId = (field = 'id') =>
 
 // ─── Auth ─────────────────────────────────────────────────────────────────────
 
-const ALLOWED_DOMAIN = 'in-quest.co.in'
+const ALLOWED_DOMAINS = (process.env.ALLOWED_EMAIL_DOMAINS || 'in-quest.co.in,inquest.global')
+  .split(',')
+  .map(d => d.trim().toLowerCase())
+  .filter(Boolean)
 
 const registerRules = [
   body('name')
@@ -24,7 +27,8 @@ const registerRules = [
     .normalizeEmail()
     .custom((email) => {
       const allowedEmails = ['adityateterve@gmail.com']
-      if (!email.endsWith(`@${ALLOWED_DOMAIN}`) && !allowedEmails.includes(email.toLowerCase())) {
+      const domain = email.split('@').at(-1)
+      if (!ALLOWED_DOMAINS.includes(domain) && !allowedEmails.includes(email)) {
         throw new Error('Not permitted to register')
       }
       return true
