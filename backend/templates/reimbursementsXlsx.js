@@ -133,8 +133,9 @@ const buildReimbursementsXlsx = async (reimbursements, branding) => {
   })
 
   ws.addRow([])
-  const grandTotal   = reimbursements.reduce((s, r) => s + r.totalAmount, 0)
-  const grandRow     = ws.addRow(['', `Grand Total (${reimbursements.length} records)`, '', '', grandTotal])
+  const paidRecords  = reimbursements.filter((r) => r.status === 'Paid')
+  const paidTotal    = paidRecords.reduce((s, r) => s + r.totalAmount, 0)
+  const grandRow     = ws.addRow(['', `Paid in Account (${paidRecords.length} records)`, '', '', paidTotal])
   grandRow.getCell(2).font = { bold: true, size: 11 }
   grandRow.getCell(5).numFmt = '"₹"#,##0.00'
   grandRow.getCell(5).font  = { bold: true, size: 11, color: { argb: BRAND_ARGB } }

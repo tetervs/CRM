@@ -136,23 +136,20 @@ const drawDivider = (doc) => {
   doc.moveDown(0.4)
 }
 
-// ── Page numbers (call after all content, before doc.end()) ──────────────────
-const addPageNumbers = (doc) => {
-  const range = doc.bufferedPageRange()
-  for (let i = 0; i < range.count; i++) {
-    doc.switchToPage(i)
-    doc.fontSize(7.5).font('Helvetica').fillColor(LIGHT)
-      .text(
-        `InQuest Global · Confidential · Page ${i + 1} of ${range.count}`,
-        MARGIN, doc.page.height - 28,
-        { width: CONTENT_W, align: 'center' }
-      )
-  }
+// ── Page footer (called inline per page — no bufferPages needed) ─────────────
+const drawFooter = (doc, pageNum) => {
+  doc.fontSize(7.5).font('Helvetica').fillColor(LIGHT)
+    .text(
+      `InQuest Global · Confidential · Page ${pageNum}`,
+      MARGIN, doc.page.height - 28,
+      { width: CONTENT_W, align: 'center', lineBreak: false }
+    )
+  doc.fillColor(DARK)
 }
 
 module.exports = {
   BRAND, DARK, MUTED, LIGHT, BORDER, MARGIN, PAGE_W, CONTENT_W, BANNER_H,
   TABLE_HDR, SECTION_FG,
   fmtDate, fmtDateTime, fmtCurrency,
-  drawBanner, drawMeta, drawSectionHeader, drawField, drawDivider, addPageNumbers,
+  drawBanner, drawFooter, drawMeta, drawSectionHeader, drawField, drawDivider,
 }
