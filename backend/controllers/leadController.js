@@ -1,10 +1,8 @@
 const Lead = require('../models/Lead')
 const { createNotification } = require('../utils/notify')
+const { buildLeadFilter } = require('../utils/exportFilters')
 
-const ownerFilter = (user) => {
-  if (['finance_head', 'admin', 'manager'].includes(user.role)) return {}
-  return { owner: user._id }
-}
+const ownerFilter = buildLeadFilter
 
 const getLeads = async (req, res) => {
   try {

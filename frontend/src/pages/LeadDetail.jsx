@@ -30,6 +30,9 @@ export default function LeadDetail() {
   const [form, setForm] = useState(null)
   const [saving, setSaving] = useState(false)
 
+  const [downloadingPdf, setDownloadingPdf] = useState(false)
+  const [pdfError, setPdfError]             = useState('')
+
   const [followUpDate, setFollowUpDate]       = useState('')
   const [savingFollowUp, setSavingFollowUp]   = useState(false)
   const [followUpSaved, setFollowUpSaved]     = useState(false)
@@ -52,6 +55,33 @@ export default function LeadDetail() {
   }, [lead])
 
   const canConvert = ['finance_head', 'admin'].includes(user?.role) && lead?.status === 'Won'
+
+  const handleDownloadPdf = async () => {
+    setDownloadingPdf(true)
+    setPdfError('')
+    try {
+      const res = await api.get(`/exports/leads/${id}`, { responseType: 'blob' })
+      const url  = window.URL.createObjectURL(new Blob([res.data]))
+      const link = document.createElement('a')
+      link.href  = url
+      const safeName = (lead?.title || id).replace(/[^a-z0-9]/gi, '_').slice(0, 40)
+      link.setAttribute('download', `lead_${id}_${safeName}.pdf`)
+      document.body.appendChild(link)
+      link.click()
+      link.remove()
+      window.URL.revokeObjectURL(url)
+    } catch (err) {
+      let msg = 'PDF generation failed.'
+      if (err.response?.status === 429) {
+        msg = 'Export limit reached (30/hour). Try again later.'
+      } else if (err.response?.data instanceof Blob) {
+        try { msg = JSON.parse(await err.response.data.text()).message || msg } catch {}
+      }
+      setPdfError(msg)
+    } finally {
+      setDownloadingPdf(false)
+    }
+  }
 
   const openConvertModal = async () => {
     setConvertError('')
@@ -138,7 +168,13 @@ export default function LeadDetail() {
           <h2 className="text-lg font-bold text-slate-900 truncate">{lead.title}</h2>
           <p className="text-sm text-slate-500">{lead.contactName} {lead.contactEmail && `· ${lead.contactEmail}`}</p>
         </div>
-        <div className="flex items-center gap-2 shrink-0">
+        <div className="flex items-center gap-2 shrink-0 flex-wrap justify-end">
+          {pdfError && (
+            <span className="text-xs text-red-600">{pdfError}</span>
+          )}
+          <Button variant="secondary" size="sm" loading={downloadingPdf} onClick={handleDownloadPdf}>
+            Download Dossier (PDF)
+          </Button>
           {canConvert && (
             <Button variant="secondary" size="sm" onClick={openConvertModal}>Convert to Project</Button>
           )}

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { PageWrapper } from '../components/layout/PageWrapper'
 import { Button } from '../components/ui/Button'
 import useReimbursementStore from '../store/reimbursementStore'
+import api from '../api/index'
 
 const TABS = ['All', 'Pending', 'Head Approved', 'Finance Approved', 'Paid', 'Rejected']
 
@@ -20,14 +21,66 @@ const formatCurrency = (val) =>
 const formatDate = (d) =>
   new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
 
+// Returns the default "last 6 months" range as YYYY-MM strings
+const defaultRange = () => {
+  const now = new Date()
+  const from = new Date(now)
+  from.setMonth(from.getMonth() - 6)
+  from.setDate(1)
+  const pad = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+  return { from: pad(from), to: pad(now) }
+}
+
 export default function Reimbursements() {
   const navigate = useNavigate()
   const { reimbursements, loading, error, fetchReimbursements } = useReimbursementStore()
   const [activeTab, setActiveTab] = useState('All')
 
+  const def = defaultRange()
+  const [exportFrom, setExportFrom] = useState(def.from)
+  const [exportTo,   setExportTo]   = useState(def.to)
+  const [exporting,  setExporting]  = useState(false)
+  const [exportError, setExportError] = useState('')
+  const [showExport, setShowExport] = useState(false)
+
   useEffect(() => { fetchReimbursements() }, [fetchReimbursements])
 
   const filtered = activeTab === 'All' ? reimbursements : reimbursements.filter((r) => r.status === activeTab)
+
+  const handleExport = async () => {
+    setExporting(true)
+    setExportError('')
+    try {
+      const params = new URLSearchParams()
+      if (exportFrom) params.set('from', exportFrom)
+      if (exportTo)   params.set('to',   exportTo)
+
+      const res = await api.get(`/exports/reimbursements?${params}`, { responseType: 'blob' })
+
+      const url  = window.URL.createObjectURL(new Blob([res.data]))
+      const link = document.createElement('a')
+      link.href  = url
+      link.setAttribute('download', `reimbursements_${exportFrom}_to_${exportTo}.xlsx`)
+      document.body.appendChild(link)
+      link.click()
+      link.remove()
+      window.URL.revokeObjectURL(url)
+      setShowExport(false)
+    } catch (err) {
+      let msg = 'Export failed. Please try again.'
+      if (err.response?.status === 429) {
+        msg = 'Export limit reached (10/hour). Try again later.'
+      } else if (err.response?.data instanceof Blob) {
+        try {
+          const text = await err.response.data.text()
+          msg = JSON.parse(text).message || msg
+        } catch {}
+      }
+      setExportError(msg)
+    } finally {
+      setExporting(false)
+    }
+  }
 
   return (
     <PageWrapper>
@@ -36,10 +89,48 @@ export default function Reimbursements() {
           <h1 className="text-xl font-bold text-slate-900">Reimbursements</h1>
           <p className="text-sm text-slate-500 mt-0.5">{reimbursements.length} total</p>
         </div>
-        <Button variant="primary" size="sm" onClick={() => navigate('/reimbursements/new')}>
-          + New Request
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="secondary" size="sm" onClick={() => { setShowExport(!showExport); setExportError('') }}>
+            Export to Excel
+          </Button>
+          <Button variant="primary" size="sm" onClick={() => navigate('/reimbursements/new')}>
+            + New Request
+          </Button>
+        </div>
       </div>
+
+      {/* Export panel */}
+      {showExport && (
+        <div className="mb-5 p-4 bg-white border border-surface-border rounded-xl shadow-sm">
+          <p className="text-xs font-semibold text-slate-700 uppercase tracking-wide mb-3">Export Date Range</p>
+          <div className="flex flex-wrap items-end gap-3">
+            <div className="flex flex-col gap-1">
+              <label className="text-xs text-slate-500">From (month)</label>
+              <input
+                type="month"
+                value={exportFrom}
+                onChange={(e) => setExportFrom(e.target.value)}
+                className="px-3 py-2 text-sm rounded-md border border-surface-border focus:outline-none focus:border-brand-primary focus:ring-2 focus:ring-brand-light"
+              />
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="text-xs text-slate-500">To (month)</label>
+              <input
+                type="month"
+                value={exportTo}
+                onChange={(e) => setExportTo(e.target.value)}
+                className="px-3 py-2 text-sm rounded-md border border-surface-border focus:outline-none focus:border-brand-primary focus:ring-2 focus:ring-brand-light"
+              />
+            </div>
+            <Button variant="primary" size="sm" loading={exporting} onClick={handleExport}>
+              Download .xlsx
+            </Button>
+          </div>
+          {exportError && (
+            <p className="mt-2 text-xs text-red-600">{exportError}</p>
+          )}
+        </div>
+      )}
 
       {error && (
         <div className="mb-4 px-4 py-3 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm">{error}</div>

@@ -1,5 +1,9 @@
 const rateLimit = require('express-rate-limit')
 
+// Key by authenticated user ID — export routes always run behind protect,
+// so req.user is guaranteed. No IP fallback needed.
+const userKeyGenerator = (req) => req.user._id.toString()
+
 /**
  * Strict limiter for login & register — 5 attempts per 15 minutes per IP.
  */
@@ -26,4 +30,33 @@ const generalLimiter = rateLimit({
   },
 })
 
-module.exports = { authLimiter, generalLimiter }
+// ── Export-specific limiters (per authenticated user) ─────────────────────────
+
+const reimbursementExportLimiter = rateLimit({
+  windowMs:     60 * 60 * 1000, // 1 hour
+  max:          10,
+  keyGenerator: userKeyGenerator,
+  standardHeaders: true,
+  legacyHeaders:   false,
+  message: { message: 'Reimbursement export limit reached (10 per hour). Please try again later.' },
+})
+
+const leadPdfLimiter = rateLimit({
+  windowMs:     60 * 60 * 1000,
+  max:          30,
+  keyGenerator: userKeyGenerator,
+  standardHeaders: true,
+  legacyHeaders:   false,
+  message: { message: 'Lead PDF export limit reached (30 per hour). Please try again later.' },
+})
+
+const projectPdfLimiter = rateLimit({
+  windowMs:     60 * 60 * 1000,
+  max:          30,
+  keyGenerator: userKeyGenerator,
+  standardHeaders: true,
+  legacyHeaders:   false,
+  message: { message: 'Project PDF export limit reached (30 per hour). Please try again later.' },
+})
+
+module.exports = { authLimiter, generalLimiter, reimbursementExportLimiter, leadPdfLimiter, projectPdfLimiter }

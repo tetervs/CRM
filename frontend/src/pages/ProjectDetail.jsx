@@ -50,6 +50,9 @@ export default function ProjectDetail() {
 
   const [manpowerPulls, setManpowerPulls]     = useState([])
 
+  const [downloadingPdf, setDownloadingPdf] = useState(false)
+  const [pdfError, setPdfError]             = useState('')
+
   const [pullModalOpen, setPullModalOpen]     = useState(false)
   const [pullForm, setPullForm]               = useState(emptyPullForm)
   const [availableWorkers, setAvailableWorkers] = useState([])
@@ -90,6 +93,33 @@ export default function ProjectDetail() {
   const totalExpenses = project.expenses?.reduce((s, e) => s + e.amount, 0) || 0
   const profit    = project.budget - totalExpenses
   const budgetUsed = project.budget > 0 ? Math.min((totalExpenses / project.budget) * 100, 100) : 0
+
+  const handleDownloadPdf = async () => {
+    setDownloadingPdf(true)
+    setPdfError('')
+    try {
+      const res = await api.get(`/exports/projects/${id}`, { responseType: 'blob' })
+      const url  = window.URL.createObjectURL(new Blob([res.data]))
+      const link = document.createElement('a')
+      link.href  = url
+      const safeName = (project?.title || id).replace(/[^a-z0-9]/gi, '_').slice(0, 40)
+      link.setAttribute('download', `project_${id}_${safeName}.pdf`)
+      document.body.appendChild(link)
+      link.click()
+      link.remove()
+      window.URL.revokeObjectURL(url)
+    } catch (err) {
+      let msg = 'PDF generation failed.'
+      if (err.response?.status === 429) {
+        msg = 'Export limit reached (30/hour). Try again later.'
+      } else if (err.response?.data instanceof Blob) {
+        try { msg = JSON.parse(await err.response.data.text()).message || msg } catch {}
+      }
+      setPdfError(msg)
+    } finally {
+      setDownloadingPdf(false)
+    }
+  }
 
   const handleStatusChange = async (e) => {
     setStatusChanging(true)
@@ -182,6 +212,12 @@ export default function ProjectDetail() {
         <span className={`shrink-0 px-2.5 py-1 rounded-full text-xs font-medium ${STATUS_STYLE[project.status] || 'bg-slate-100 text-slate-600'}`}>
           {project.status}
         </span>
+        {pdfError && (
+          <span className="text-xs text-red-600 shrink-0">{pdfError}</span>
+        )}
+        <Button variant="secondary" size="sm" loading={downloadingPdf} onClick={handleDownloadPdf}>
+          Download Dossier (PDF)
+        </Button>
         {canSubmitReimbursement && (
           <Button variant="secondary" size="sm" onClick={() => navigate(`/reimbursements/new?projectId=${id}`)}>
             Submit Reimbursement

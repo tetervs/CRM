@@ -2,6 +2,7 @@ const Reimbursement = require('../models/Reimbursement')
 const Project = require('../models/Project')
 const { sendReimbursementNotification } = require('../utils/mailer')
 const { createNotification } = require('../utils/notify')
+const { buildReimbursementFilter } = require('../utils/exportFilters')
 
 const PRIVILEGED = ['finance_head', 'admin']
 
@@ -9,8 +10,7 @@ const populateFields = 'submittedBy headReviewedBy financeReviewedBy paidBy'
 
 const getReimbursements = async (req, res) => {
   try {
-    const { role, _id } = req.user
-    const filter = PRIVILEGED.includes(role) || role === 'manager' ? {} : { submittedBy: _id }
+    const filter = buildReimbursementFilter(req.user)
 
     const reimbursements = await Reimbursement.find(filter)
       .populate('submittedBy', 'name email role')

@@ -54,6 +54,8 @@ app.use('/api/projects',      require('./routes/projectRoutes'))
 app.use('/api/reimbursements',  require('./routes/reimbursementRoutes'))
 app.use('/api/notifications',  require('./routes/notificationRoutes'))
 app.use('/api/milestones',     require('./routes/milestoneRoutes'))
+app.use('/api/exports',        require('./routes/exportRoutes'))
+app.use('/api/audit',          require('./routes/auditRoutes'))
 
 // ── Health check ─────────────────────────────────────────────────────────────
 app.get('/api/health', (_req, res) => res.json({ status: 'ok' }))

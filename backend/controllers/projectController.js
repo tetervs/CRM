@@ -1,5 +1,6 @@
 const Project = require('../models/Project')
 const { createNotification } = require('../utils/notify')
+const { buildProjectFilter } = require('../utils/exportFilters')
 
 const PRIVILEGED = ['finance_head', 'admin', 'manager']
 
@@ -14,11 +15,7 @@ const canAccess = (project, userId, role) => {
 
 const getProjects = async (req, res) => {
   try {
-    const { role, _id } = req.user
-
-    let filter = PRIVILEGED.includes(role)
-      ? {}
-      : { $or: [{ projectHead: _id }, { teamMembers: _id }] }
+    let filter = buildProjectFilter(req.user)
 
     if (req.query.leadId) {
       const leadCond = { lead: req.query.leadId }
