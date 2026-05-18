@@ -20,10 +20,13 @@ export default function NewReimbursement() {
   const prefilledProjectId = searchParams.get('projectId') || ''
   const [projectName, setProjectName] = useState('')
 
-  const [items, setItems]         = useState([emptyItem()])
-  const [notes, setNotes]         = useState('')
+  const [projects, setProjects] = useState([])
+  const [selectedProjectId, setSelectedProjectId] = useState('')
+
+  const [items, setItems] = useState([emptyItem()])
+  const [notes, setNotes] = useState('')
   const [submitting, setSubmitting] = useState(false)
-  const [error, setError]         = useState('')
+  const [error, setError] = useState('')
   const [proofFiles, setProofFiles] = useState([])
   const [previewUrls, setPreviewUrls] = useState([])
 
@@ -59,7 +62,14 @@ export default function NewReimbursement() {
     if (!prefilledProjectId) return
     api.get(`/projects/${prefilledProjectId}`)
       .then(({ data }) => setProjectName(data.title))
-      .catch(() => {})
+      .catch(() => { })
+  }, [prefilledProjectId])
+
+  useEffect(() => {
+    if (prefilledProjectId) return
+    api.get('/projects')
+      .then(({ data }) => setProjects(data))
+      .catch(() => { })
   }, [prefilledProjectId])
 
   const totalAmount = items.reduce((sum, item) => sum + (Number(item.amount) || 0), 0)
@@ -86,6 +96,7 @@ export default function NewReimbursement() {
       fd.append('items', JSON.stringify(validItems))
       if (notes) fd.append('notes', notes)
       if (prefilledProjectId) fd.append('projectId', prefilledProjectId)
+      else if (selectedProjectId) fd.append('projectId', selectedProjectId)
       proofFiles.forEach((file) => fd.append('proofFiles', file))
 
       const result = await createReimbursement(fd)
@@ -115,7 +126,7 @@ export default function NewReimbursement() {
           <div className="px-4 py-3 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm">{error}</div>
         )}
 
-        {prefilledProjectId && (
+        {prefilledProjectId ? (
           <Card title="Project">
             <div className="flex items-center gap-2">
               <svg className="w-4 h-4 text-slate-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -125,6 +136,19 @@ export default function NewReimbursement() {
               <span className="text-sm font-medium text-slate-900">{projectName || 'Loading…'}</span>
               <span className="text-xs text-slate-400">(linked to project)</span>
             </div>
+          </Card>
+        ) : (
+          <Card title="Project (optional)">
+            <select
+              value={selectedProjectId}
+              onChange={(e) => setSelectedProjectId(e.target.value)}
+              className="px-3 py-2 text-sm rounded-md border border-surface-border focus:outline-none focus:border-brand-primary focus:ring-2 focus:ring-brand-light w-full"
+            >
+              <option value="">-- No project --</option>
+              {projects.map((p) => (
+                <option key={p._id} value={p._id}>{p.title}</option>
+              ))}
+            </select>
           </Card>
         )}
 
