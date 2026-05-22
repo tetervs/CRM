@@ -1,20 +1,39 @@
 const nodemailer = require('nodemailer')
+const dns = require('dns').promises
 
 // ── Reusable transporter ──────────────────────────────────────────────────────
-const transporter = nodemailer.createTransport({
-  host:   process.env.SMTP_HOST,
-  port:   Number(process.env.SMTP_PORT) || 587,
-  secure: process.env.SMTP_SECURE === 'true', // true for port 465
-  auth: {
-    user: process.env.SMTP_USER,
-    pass: process.env.SMTP_PASS,
-  },
-})
+// Render's free tier cannot reach IPv6. smtp.gmail.com resolves to IPv6 first,
+// causing ENETUNREACH. Resolve the host to a literal IPv4 address so the socket
+// connects over IPv4 directly (bypasses DNS family selection / Happy Eyeballs).
+let transporterPromise = null
+
+const getTransporter = async () => {
+  if (transporterPromise) return transporterPromise
+  transporterPromise = (async () => {
+    const host = process.env.SMTP_HOST
+    const { address } = await dns.lookup(host, { family: 4 })
+    return nodemailer.createTransport({
+      host:   address,
+      port:   Number(process.env.SMTP_PORT) || 587,
+      secure: process.env.SMTP_SECURE === 'true', // true for port 465
+      auth: {
+        user: process.env.SMTP_USER,
+        pass: process.env.SMTP_PASS,
+      },
+      tls: { servername: host }, // SNI + cert validation against real hostname
+    })
+  })().catch((err) => {
+    transporterPromise = null // allow retry on next send
+    throw err
+  })
+  return transporterPromise
+}
 
 // ── Send email verification ────────────────────────────────────────────────────
 const sendVerificationEmail = async (to, name, token) => {
   const verifyUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/verify-email?token=${token}`
 
+  const transporter = await getTransporter()
   await transporter.sendMail({
     from: `"SalesPilot" <${process.env.SMTP_FROM || process.env.SMTP_USER}>`,
     to,
@@ -52,6 +71,7 @@ const sendReimbursementNotification = async (to, name, event, reimbursement) => 
 
   const amount = new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(reimbursement.totalAmount || 0)
 
+  const transporter = await getTransporter()
   await transporter.sendMail({
     from: `"SalesPilot" <${process.env.SMTP_FROM || process.env.SMTP_USER}>`,
     to,
@@ -71,6 +91,7 @@ const sendReimbursementNotification = async (to, name, event, reimbursement) => 
 const sendPasswordResetEmail = async (to, name, token, userId) => {
   const resetUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/reset-password?token=${token}&id=${userId}`
 
+  const transporter = await getTransporter()
   await transporter.sendMail({
     from: `"SalesPilot" <${process.env.SMTP_FROM || process.env.SMTP_USER}>`,
     to,
