@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link, useNavigate, useSearchParams } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import { Button } from '../components/ui/Button'
 import { Input } from '../components/ui/Input'
 import useAuthStore from '../store/authStore'
@@ -10,8 +10,6 @@ export default function Login() {
   const [loading, setLoading] = useState(false)
   const { login } = useAuthStore()
   const navigate = useNavigate()
-  const [searchParams] = useSearchParams()
-  const resetSuccess = searchParams.get('reset') === '1'
 
   const handleChange = (e) => setForm((f) => ({ ...f, [e.target.name]: e.target.value }))
 
@@ -53,12 +51,6 @@ export default function Login() {
             <p className="text-sm text-slate-500 mt-1">Welcome back. Enter your credentials to continue.</p>
           </div>
 
-          {resetSuccess && (
-            <div className="mb-4 px-3 py-2.5 bg-emerald-50 border border-emerald-200 rounded-md">
-              <p className="text-sm text-emerald-700">Password reset successfully. Sign in with your new password.</p>
-            </div>
-          )}
-
           {error && (
             <div className="mb-4 px-3 py-2.5 bg-red-50 border border-red-200 rounded-md">
               <p className="text-sm text-red-700">{error}</p>
@@ -84,23 +76,11 @@ export default function Login() {
               onChange={handleChange}
               required
             />
-            <div className="flex justify-end">
-              <Link to="/forgot-password" className="text-xs text-brand-primary hover:text-brand-hover">
-                Forgot password?
-              </Link>
-            </div>
             <Button type="submit" variant="primary" size="md" loading={loading} className="w-full justify-center">
               Sign in
             </Button>
           </form>
         </div>
-
-        <p className="text-center text-sm text-slate-500 mt-5">
-          Don't have an account?{' '}
-          <Link to="/register" className="text-brand-primary font-medium hover:text-brand-hover">
-            Create one
-          </Link>
-        </p>
       </div>
     </div>
   )

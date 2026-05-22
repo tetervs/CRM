@@ -1,77 +1,17 @@
-const crypto = require('crypto')
 const jwt = require('jsonwebtoken')
 const User = require('../models/User')
-const { sendVerificationEmail, sendPasswordResetEmail } = require('../utils/mailer')
 
 const signToken = (id) =>
   jwt.sign({ id }, process.env.JWT_SECRET, { expiresIn: '7d' })
-
-// ── Register ──────────────────────────────────────────────────────────────────
-const register = async (req, res) => {
-  try {
-    const { name, email, password } = req.body
-
-    const exists = await User.findOne({ email })
-    if (exists) return res.status(400).json({ message: 'Email already registered' })
-
-    // Generate a cryptographically random verification token
-    const verificationToken   = crypto.randomBytes(32).toString('hex')
-    const verificationExpires = new Date(Date.now() + 24 * 60 * 60 * 1000) // 24 h
-
-    const user = await User.create({
-      name, email, password, role: 'sales',
-      verificationToken,
-      verificationExpires,
-      isVerified: false,
-    })
-
-    // Send verification email — non-blocking (don't fail registration if email glitches)
-    sendVerificationEmail(user.email, user.name, verificationToken).catch((err) =>
-      console.error('[mailer] Failed to send verification email:', err.message)
-    )
-
-    res.status(201).json({
-      message: 'Account created! Please check your email to verify your account before logging in.',
-    })
-  } catch (err) {
-    res.status(500).json({ message: err.message })
-  }
-}
-
-// ── Verify Email ──────────────────────────────────────────────────────────────
-const verifyEmail = async (req, res) => {
-  try {
-    const { token } = req.params
-
-    const user = await User.findOne({
-      verificationToken: token,
-      verificationExpires: { $gt: Date.now() },
-    })
-
-    if (!user) {
-      return res.status(400).json({ message: 'Verification link is invalid or has expired.' })
-    }
-
-    user.isVerified          = true
-    user.verificationToken   = null
-    user.verificationExpires = null
-    await user.save()
-
-    res.json({ message: 'Email verified successfully! You can now log in.' })
-  } catch (err) {
-    res.status(500).json({ message: err.message })
-  }
-}
 
 // ── Login ─────────────────────────────────────────────────────────────────────
 const login = async (req, res) => {
   try {
     const { email, password } = req.body
 
-    const user = await User.findOne({ email }).select('+password +verificationToken +verificationExpires +failedLoginAttempts +lockUntil')
+    const user = await User.findOne({ email }).select('+password')
     if (!user)           return res.status(401).json({ message: 'Invalid credentials' })
     if (!user.isActive)  return res.status(403).json({ message: 'Account deactivated' })
-    if (!user.isVerified) return res.status(403).json({ message: 'Please verify your email before logging in.' })
 
     // ── Account lockout check ─────────────────────────────────────────────
     if (user.lockUntil && user.lockUntil > Date.now()) {
@@ -107,7 +47,7 @@ const getMe = async (req, res) => {
   res.json(req.user)
 }
 
-// ── Change password (auth required) ──────────────────────────────────────────
+// ── Change password (auth required, knows current password) ──────────────────
 const changePassword = async (req, res) => {
   try {
     const { currentPassword, newPassword } = req.body
@@ -123,6 +63,7 @@ const changePassword = async (req, res) => {
     if (!match) return res.status(400).json({ message: 'Current password is incorrect' })
 
     user.password = newPassword
+    user.mustChangePassword = false
     await user.save()
     res.json({ message: 'Password updated successfully' })
   } catch (err) {
@@ -130,64 +71,27 @@ const changePassword = async (req, res) => {
   }
 }
 
-// ── Forgot password ────────────────────────────────────────────────────────────
-const forgotPassword = async (req, res) => {
+// ── First-time forced password change ────────────────────────────────────────
+// For admin-created accounts (mustChangePassword=true). User is already
+// authenticated via the temp password, so only the new password is required.
+const changePasswordFirstTime = async (req, res) => {
   try {
-    const { email } = req.body
-
-    const user = await User.findOne({ email: email?.toLowerCase().trim() })
-    if (!user) {
-      // Always 200 to prevent email enumeration
-      return res.json({ message: 'If that email is registered, a reset link has been sent.' })
-    }
-
-    const rawToken = crypto.randomBytes(32).toString('hex')
-    const hashedToken = crypto.createHash('sha256').update(rawToken).digest('hex')
-
-    user.resetPasswordToken   = hashedToken
-    user.resetPasswordExpires = new Date(Date.now() + 60 * 60 * 1000) // 1 hour
-    await user.save()
-
-    sendPasswordResetEmail(user.email, user.name, rawToken, user._id.toString()).catch((err) =>
-      console.error('[mailer] Failed to send reset email:', err.message)
-    )
-
-    res.json({ message: 'If that email is registered, a reset link has been sent.' })
-  } catch (err) {
-    res.status(500).json({ message: err.message })
-  }
-}
-
-// ── Reset password ─────────────────────────────────────────────────────────────
-const resetPassword = async (req, res) => {
-  try {
-    const { token, userId, newPassword } = req.body
-    if (!token || !userId || !newPassword) {
-      return res.status(400).json({ message: 'token, userId, and newPassword are required' })
+    const { newPassword } = req.body
+    if (!newPassword) {
+      return res.status(400).json({ message: 'newPassword is required' })
     }
     if (newPassword.length < 6 || newPassword.length > 128) {
-      return res.status(400).json({ message: 'Password must be 6–128 characters' })
+      return res.status(400).json({ message: 'New password must be 6–128 characters' })
     }
 
-    const hashedToken = crypto.createHash('sha256').update(token).digest('hex')
-
-    const user = await User.findOne({
-      _id:                  userId,
-      resetPasswordToken:   hashedToken,
-      resetPasswordExpires: { $gt: Date.now() },
-    })
-
-    if (!user) return res.status(400).json({ message: 'Reset link is invalid or has expired.' })
-
-    user.password             = newPassword
-    user.resetPasswordToken   = null
-    user.resetPasswordExpires = null
+    const user = await User.findById(req.user._id).select('+password')
+    user.password = newPassword
+    user.mustChangePassword = false
     await user.save()
-
-    res.json({ message: 'Password reset successfully. You can now log in.' })
+    res.json({ message: 'Password updated successfully', user: user.toJSON() })
   } catch (err) {
     res.status(500).json({ message: err.message })
   }
 }
 
-module.exports = { register, verifyEmail, login, getMe, changePassword, forgotPassword, resetPassword }
+module.exports = { login, getMe, changePassword, changePasswordFirstTime }

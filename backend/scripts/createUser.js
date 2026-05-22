@@ -22,7 +22,6 @@ async function run() {
     email:       EMAIL,
     password:    PASSWORD,
     role:        ROLE,
-    isVerified:  true,
     isActive:    true,
   })
 

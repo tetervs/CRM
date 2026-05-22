@@ -18,10 +18,13 @@ const useAuthStore = create((set) => ({
     set({ user: data.user, token: data.token, isAuthenticated: true })
   },
 
-  register: async (formData) => {
-    const { data } = await api.post('/auth/register', formData)
-    return data
-  },
+  // Merge a partial update into the current user (e.g. clearing mustChangePassword)
+  updateUser: (partial) =>
+    set((state) => {
+      const user = { ...state.user, ...partial }
+      localStorage.setItem('crm_user', JSON.stringify(user))
+      return { user }
+    }),
 
   logout: () => {
     localStorage.removeItem('crm_token')

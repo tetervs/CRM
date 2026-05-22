@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { PageWrapper } from '../components/layout/PageWrapper'
 import { Button } from '../components/ui/Button'
 import { Modal } from '../components/ui/Modal'
+import { AddUserModal } from '../components/shared/AddUserModal'
 import useAuthStore from '../store/authStore'
 import api from '../api/index'
 
@@ -15,24 +16,25 @@ const ROLE_STYLES = {
 const ROLE_OPTIONS_BASE  = ['employee', 'sales']
 const ROLE_OPTIONS_ADMIN = ['employee', 'sales', 'manager']
 
-const formatDate = (d) => new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-
 export default function Employees() {
   const { user } = useAuthStore()
   const [employees, setEmployees] = useState([])
   const [editTarget, setEditTarget] = useState(null)
   const [newRole, setNewRole] = useState('')
   const [saving, setSaving] = useState(false)
+  const [showAdd, setShowAdd] = useState(false)
 
   const isPrivileged = ['finance_head', 'admin'].includes(user?.role)
   const isAdmin      = user?.role === 'admin'
   const roleOptions  = isAdmin ? ROLE_OPTIONS_ADMIN : ROLE_OPTIONS_BASE
 
-  useEffect(() => {
+  const loadEmployees = () => {
     api.get('/users').then(({ data }) => {
       setEmployees(data.filter((u) => WORKER_ROLES.includes(u.role)))
     }).catch(() => {})
-  }, [])
+  }
+
+  useEffect(() => { loadEmployees() }, [])
 
   const openEdit = (member) => {
     setEditTarget(member)
@@ -63,6 +65,9 @@ export default function Employees() {
           <h1 className="text-xl font-bold text-slate-900">Employees</h1>
           <p className="text-sm text-slate-500 mt-0.5">{employees.filter((e) => e.isActive).length} active</p>
         </div>
+        {isPrivileged && (
+          <Button variant="primary" size="md" onClick={() => setShowAdd(true)}>+ Add User</Button>
+        )}
       </div>
 
       <div className="bg-white border border-surface-border rounded-xl shadow-sm overflow-hidden">
@@ -92,7 +97,7 @@ export default function Employees() {
                     {member.role}
                   </span>
                 </td>
-                <td className="px-5 py-3.5 text-slate-500 text-xs">—</td>
+                <td className="px-5 py-3.5 text-slate-500 text-xs">{member.department?.name || '—'}</td>
                 <td className="px-5 py-3.5 text-slate-500 text-xs">{member.email}</td>
                 <td className="px-5 py-3.5">
                   <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium ${member.isActive ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}>
@@ -145,6 +150,13 @@ export default function Employees() {
           </div>
         </div>
       </Modal>
+
+      <AddUserModal
+        isOpen={showAdd}
+        onClose={() => setShowAdd(false)}
+        onCreated={loadEmployees}
+        defaultRole="employee"
+      />
     </PageWrapper>
   )
 }

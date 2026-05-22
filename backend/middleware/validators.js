@@ -7,39 +7,6 @@ const mongoId = (field = 'id') =>
 
 // ─── Auth ─────────────────────────────────────────────────────────────────────
 
-const ALLOWED_DOMAINS = (process.env.ALLOWED_EMAIL_DOMAINS || 'in-quest.co.in,inquest.global')
-  .split(',')
-  .map(d => d.trim().toLowerCase())
-  .filter(Boolean)
-
-const registerRules = [
-  body('name')
-    .trim()
-    .notEmpty().withMessage('Name is required')
-    .isLength({ max: 100 }).withMessage('Name must be at most 100 characters')
-    .matches(/^[\p{L}\p{N} .'-]+$/u).withMessage('Name contains invalid characters'),
-
-  body('email')
-    .trim()
-    .notEmpty().withMessage('Email is required')
-    .isEmail().withMessage('Must be a valid email address')
-    .isLength({ max: 254 }).withMessage('Email is too long')
-    .normalizeEmail()
-    .custom((email) => {
-      const allowedEmails = ['adityateterve@gmail.com']
-      const domain = email.split('@').at(-1)
-      if (!ALLOWED_DOMAINS.includes(domain) && !allowedEmails.includes(email)) {
-        throw new Error('Not permitted to register')
-      }
-      return true
-    }),
-
-  body('password')
-    .notEmpty().withMessage('Password is required')
-    .isLength({ min: 6, max: 128 }).withMessage('Password must be 6–128 characters'),
-
-]
-
 const loginRules = [
   body('email')
     .trim()
@@ -154,6 +121,33 @@ const statusRules = [
 
 // ─── Users ────────────────────────────────────────────────────────────────────
 
+const createUserRules = [
+  body('name')
+    .trim()
+    .notEmpty().withMessage('Name is required')
+    .isLength({ max: 100 }).withMessage('Name must be at most 100 characters')
+    .matches(/^[\p{L}\p{N} .'-]+$/u).withMessage('Name contains invalid characters'),
+
+  body('email')
+    .trim()
+    .notEmpty().withMessage('Email is required')
+    .isEmail().withMessage('Must be a valid email address')
+    .isLength({ max: 254 }).withMessage('Email is too long')
+    .normalizeEmail(),
+
+  body('role')
+    .notEmpty().withMessage('Role is required')
+    .isIn(['employee', 'sales', 'manager', 'admin']).withMessage('Role must be employee, sales, manager, or admin'),
+
+  body('department')
+    .notEmpty().withMessage('Department is required')
+    .isMongoId().withMessage('Department must be a valid ID'),
+
+  body('manager')
+    .optional({ nullable: true, checkFalsy: true })
+    .isMongoId().withMessage('Manager must be a valid ID'),
+]
+
 const updateRoleRules = [
   mongoId(),
   body('role')
@@ -255,11 +249,11 @@ const reimbursementActionRules = [
 ]
 
 module.exports = {
-  registerRules,
   loginRules,
   createLeadRules,
   updateLeadRules,
   statusRules,
+  createUserRules,
   updateRoleRules,
   departmentCreateRules,
   departmentUpdateRules,

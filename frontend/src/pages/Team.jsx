@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { PageWrapper } from '../components/layout/PageWrapper'
 import { Button } from '../components/ui/Button'
 import { UserPerformanceDrawer } from '../components/shared/UserPerformanceDrawer'
+import { AddUserModal } from '../components/shared/AddUserModal'
 import useAuthStore from '../store/authStore'
 import useLeadStore from '../store/leadStore'
 import api from '../api/index'
@@ -21,15 +22,18 @@ export default function Team() {
   const { leads } = useLeadStore()
   const [team, setTeam] = useState([])
   const [analyseUserId, setAnalyseUserId] = useState(null)
+  const [showAdd, setShowAdd] = useState(false)
 
   const isAdmin     = user?.role === 'admin'
   const isPrivileged = ['finance_head', 'admin'].includes(user?.role)
 
-  useEffect(() => {
+  const loadTeam = () => {
     api.get('/users').then(({ data }) => {
       setTeam(data.filter((m) => MGMT_ROLES.includes(m.role)))
     }).catch(() => {})
-  }, [])
+  }
+
+  useEffect(() => { loadTeam() }, [])
 
   const leadsFor = (userId) => leads.filter((l) => l.owner?._id === userId).length
 
@@ -50,6 +54,9 @@ export default function Team() {
           <h1 className="text-xl font-bold text-slate-900">Team</h1>
           <p className="text-sm text-slate-500 mt-0.5">{team.filter((m) => m.isActive).length} active managers &amp; admins</p>
         </div>
+        {isPrivileged && (
+          <Button variant="primary" size="md" onClick={() => setShowAdd(true)}>+ Add User</Button>
+        )}
       </div>
 
       <div className="bg-white border border-surface-border rounded-xl shadow-sm overflow-hidden">
@@ -135,6 +142,13 @@ export default function Team() {
       <UserPerformanceDrawer
         userId={analyseUserId}
         onClose={() => setAnalyseUserId(null)}
+      />
+
+      <AddUserModal
+        isOpen={showAdd}
+        onClose={() => setShowAdd(false)}
+        onCreated={loadTeam}
+        defaultRole="manager"
       />
     </PageWrapper>
   )

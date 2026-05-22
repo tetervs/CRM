@@ -1,6 +1,5 @@
 const Reimbursement = require('../models/Reimbursement')
 const Project = require('../models/Project')
-const { sendReimbursementNotification } = require('../utils/mailer')
 const { createNotification } = require('../utils/notify')
 const { buildReimbursementFilter } = require('../utils/exportFilters')
 
@@ -118,17 +117,6 @@ const getReimbursement = async (req, res) => {
   }
 }
 
-const notify = async (reimbursement, event) => {
-  try {
-    await sendReimbursementNotification(
-      reimbursement.submittedBy.email,
-      reimbursement.submittedBy.name,
-      event,
-      reimbursement,
-    )
-  } catch (_) {}
-}
-
 const headApprove = async (req, res) => {
   try {
     const reimbursement = await Reimbursement.findById(req.params.id)
@@ -143,7 +131,6 @@ const headApprove = async (req, res) => {
     await reimbursement.save()
     await reimbursement.populate(populateFields, 'name email role')
 
-    await notify(reimbursement, 'head_approved')
     createNotification({
       recipientId: reimbursement.submittedBy._id,
       message:     `Your reimbursement request has been head-approved`,
@@ -170,7 +157,6 @@ const financeApprove = async (req, res) => {
     await reimbursement.save()
     await reimbursement.populate(populateFields, 'name email role')
 
-    await notify(reimbursement, 'finance_approved')
     createNotification({
       recipientId: reimbursement.submittedBy._id,
       message:     `Your reimbursement request has been finance-approved`,
@@ -196,7 +182,6 @@ const rejectReimbursement = async (req, res) => {
     await reimbursement.save()
     await reimbursement.populate(populateFields, 'name email role')
 
-    await notify(reimbursement, 'rejected')
     createNotification({
       recipientId: reimbursement.submittedBy._id,
       message:     `Your reimbursement request has been rejected`,
@@ -223,7 +208,6 @@ const markPaid = async (req, res) => {
     await reimbursement.save()
     await reimbursement.populate(populateFields, 'name email role')
 
-    await notify(reimbursement, 'paid')
     createNotification({
       recipientId: reimbursement.submittedBy._id,
       message:     `Your reimbursement has been paid`,
