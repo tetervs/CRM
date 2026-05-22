@@ -3,16 +3,17 @@ import { useNavigate } from 'react-router-dom'
 import { PageWrapper } from '../components/layout/PageWrapper'
 import { Button } from '../components/ui/Button'
 import useReimbursementStore from '../store/reimbursementStore'
+import useAuthStore from '../store/authStore'
 import api from '../api/index'
 
 const TABS = ['All', 'Pending', 'Head Approved', 'Finance Approved', 'Paid', 'Rejected']
 
 const STATUS_STYLE = {
-  'Pending':          'bg-blue-100 text-blue-700',
-  'Head Approved':    'bg-amber-100 text-amber-700',
+  'Pending': 'bg-blue-100 text-blue-700',
+  'Head Approved': 'bg-amber-100 text-amber-700',
   'Finance Approved': 'bg-violet-100 text-violet-700',
-  'Paid':             'bg-emerald-100 text-emerald-700',
-  'Rejected':         'bg-red-100 text-red-700',
+  'Paid': 'bg-emerald-100 text-emerald-700',
+  'Rejected': 'bg-red-100 text-red-700',
 }
 
 const formatCurrency = (val) =>
@@ -34,12 +35,15 @@ const defaultRange = () => {
 export default function Reimbursements() {
   const navigate = useNavigate()
   const { reimbursements, loading, error, fetchReimbursements } = useReimbursementStore()
+  const { user } = useAuthStore()
   const [activeTab, setActiveTab] = useState('All')
+
+  const canExport = ['admin', 'finance_head', 'manager'].includes(user?.role)
 
   const def = defaultRange()
   const [exportFrom, setExportFrom] = useState(def.from)
-  const [exportTo,   setExportTo]   = useState(def.to)
-  const [exporting,  setExporting]  = useState(false)
+  const [exportTo, setExportTo] = useState(def.to)
+  const [exporting, setExporting] = useState(false)
   const [exportError, setExportError] = useState('')
   const [showExport, setShowExport] = useState(false)
 
@@ -53,13 +57,13 @@ export default function Reimbursements() {
     try {
       const params = new URLSearchParams()
       if (exportFrom) params.set('from', exportFrom)
-      if (exportTo)   params.set('to',   exportTo)
+      if (exportTo) params.set('to', exportTo)
 
       const res = await api.get(`/exports/reimbursements?${params}`, { responseType: 'blob' })
 
-      const url  = window.URL.createObjectURL(new Blob([res.data]))
+      const url = window.URL.createObjectURL(new Blob([res.data]))
       const link = document.createElement('a')
-      link.href  = url
+      link.href = url
       link.setAttribute('download', `reimbursements_${exportFrom}_to_${exportTo}.xlsx`)
       document.body.appendChild(link)
       link.click()
@@ -74,7 +78,7 @@ export default function Reimbursements() {
         try {
           const text = await err.response.data.text()
           msg = JSON.parse(text).message || msg
-        } catch {}
+        } catch { }
       }
       setExportError(msg)
     } finally {
@@ -90,9 +94,11 @@ export default function Reimbursements() {
           <p className="text-sm text-slate-500 mt-0.5">{reimbursements.length} total</p>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="secondary" size="sm" onClick={() => { setShowExport(!showExport); setExportError('') }}>
-            Export to Excel
-          </Button>
+          {canExport && (
+            <Button variant="secondary" size="sm" onClick={() => { setShowExport(!showExport); setExportError('') }}>
+              Export to Excel
+            </Button>
+          )}
           <Button variant="primary" size="sm" onClick={() => navigate('/reimbursements/new')}>
             + New Request
           </Button>
@@ -100,7 +106,7 @@ export default function Reimbursements() {
       </div>
 
       {/* Export panel */}
-      {showExport && (
+      {canExport && showExport && (
         <div className="mb-5 p-4 bg-white border border-surface-border rounded-xl shadow-sm">
           <p className="text-xs font-semibold text-slate-700 uppercase tracking-wide mb-3">Export Date Range</p>
           <div className="flex flex-wrap items-end gap-3">
@@ -144,11 +150,10 @@ export default function Reimbursements() {
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
-              className={`shrink-0 px-3 py-2 text-xs font-medium rounded-t-md border-b-2 -mb-px transition-colors ${
-                activeTab === tab
+              className={`shrink-0 px-3 py-2 text-xs font-medium rounded-t-md border-b-2 -mb-px transition-colors ${activeTab === tab
                   ? 'border-brand-primary text-brand-primary'
                   : 'border-transparent text-slate-500 hover:text-slate-700'
-              }`}
+                }`}
             >
               {tab}{count > 0 ? ` (${count})` : ''}
             </button>

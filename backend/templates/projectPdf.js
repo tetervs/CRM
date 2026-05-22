@@ -2,7 +2,7 @@ const PDFDocument = require('pdfkit')
 const {
   MARGIN, CONTENT_W,
   fmtDate, fmtDateTime, fmtCurrency,
-  drawBanner, drawMeta, drawSectionHeader, drawField, addPageNumbers,
+  drawBanner, drawFooter, drawMeta, drawSectionHeader, drawField,
   DARK, LIGHT, BRAND, BORDER,
 } = require('./pdfHelpers')
 
@@ -41,19 +41,25 @@ const drawTableRow = (doc, cols, values, shade) => {
 const renderProjectPdf = (project, reimbursements, manpowerPulls, branding) => {
   return new Promise((resolve, reject) => {
     try {
+      let pageNum = 0
+
       const doc = new PDFDocument({
-        bufferPages: true,
         size: 'A4',
         margins: { top: 90, bottom: 60, left: MARGIN, right: MARGIN },
+        autoFirstPage: false,
       })
 
       const chunks = []
       doc.on('data',  (c) => chunks.push(c))
       doc.on('error', reject)
       doc.on('end',   () => resolve(Buffer.concat(chunks)))
+      doc.on('pageAdded', () => {
+        pageNum++
+        drawFooter(doc, pageNum)
+        drawBanner(doc, branding)
+      })
 
-      drawBanner(doc, branding)
-      doc.on('pageAdded', () => drawBanner(doc, branding))
+      doc.addPage()
 
       doc.moveDown(0.4)
       drawMeta(doc, branding)
@@ -216,9 +222,6 @@ const renderProjectPdf = (project, reimbursements, manpowerPulls, branding) => {
         })
       }
 
-      // ── Page numbers ──────────────────────────────────────────────────────────
-      addPageNumbers(doc)
-      doc.flushPages()
       doc.end()
     } catch (err) {
       reject(err)
