@@ -1,4 +1,5 @@
 require('dotenv').config()
+require('dns').setDefaultResultOrder('ipv4first') // Render free tier blocks IPv6
 const express = require('express')
 const cors = require('cors')
 const helmet = require('helmet')
