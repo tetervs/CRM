@@ -65,7 +65,7 @@ const createReimbursement = async (req, res) => {
     }
 
     const totalAmount = validItems.reduce((sum, item) => sum + Number(item.amount), 0)
-    const proofFiles  = (req.files || []).map((f) => f.path)
+    const proofFiles  = (req.files || []).map((f) => f.secure_url)
 
     const reimbursement = await Reimbursement.create({
       submittedBy: req.user._id,
@@ -87,6 +87,16 @@ const createReimbursement = async (req, res) => {
           link:        `/reimbursements/${reimbursement._id}`,
         })
       }
+    }
+
+    // Route to the submitter's manager for head-approval, if one is set.
+    if (req.user.manager) {
+      createNotification({
+        recipientId: req.user.manager,
+        message:     `New reimbursement request from ${req.user.name} needs your approval`,
+        type:        'reimbursement',
+        link:        `/reimbursements/${reimbursement._id}`,
+      })
     }
 
     res.status(201).json(reimbursement)
@@ -137,6 +147,17 @@ const headApprove = async (req, res) => {
       type:        'reimbursement',
       link:        `/reimbursements/${reimbursement._id}`,
     })
+
+    // Route to the approving manager's own finance_head for final approval.
+    // (req.user.manager is null for finance_head/admin, who can finance-approve directly.)
+    if (req.user.manager) {
+      createNotification({
+        recipientId: req.user.manager,
+        message:     `A reimbursement from ${reimbursement.submittedBy.name} needs final approval`,
+        type:        'reimbursement',
+        link:        `/reimbursements/${reimbursement._id}`,
+      })
+    }
     res.json(reimbursement)
   } catch (err) {
     res.status(500).json({ message: err.message })

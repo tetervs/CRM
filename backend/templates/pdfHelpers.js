@@ -137,13 +137,20 @@ const drawDivider = (doc) => {
 }
 
 // ── Page footer (called inline per page — no bufferPages needed) ─────────────
+// Writes inside the bottom margin band, below page.maxY() (height - margins.bottom).
+// pdfkit's text layout auto-paginates past maxY, which would re-fire the
+// 'pageAdded' listener and recurse forever — zero the bottom margin for this
+// one write so it's treated as in-bounds, then restore it.
 const drawFooter = (doc, pageNum) => {
+  const bottomMargin = doc.page.margins.bottom
+  doc.page.margins.bottom = 0
   doc.fontSize(7.5).font('Helvetica').fillColor(LIGHT)
     .text(
       `InQuest Global · Confidential · Page ${pageNum}`,
       MARGIN, doc.page.height - 28,
       { width: CONTENT_W, align: 'center', lineBreak: false }
     )
+  doc.page.margins.bottom = bottomMargin
   doc.fillColor(DARK)
 }
 

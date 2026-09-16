@@ -2,9 +2,12 @@ const User = require('../models/User')
 const Department = require('../models/Department')
 
 const CREATABLE_ROLES   = ['employee', 'sales', 'manager', 'admin']
-const MANAGER_REQUIRED   = ['employee', 'sales']
+const MANAGER_REQUIRED   = ['employee', 'sales', 'manager']
 const MANAGER_FORBIDDEN  = ['admin']
 const MANAGER_OR_HIGHER  = ['manager', 'admin', 'finance_head']
+// A manager's own "manager" is who they report to for approvals — must be
+// finance_head or admin, never another manager.
+const MANAGER_REPORTS_TO = ['finance_head', 'admin']
 
 const getUsers = async (req, res) => {
   try {
@@ -22,10 +25,20 @@ const getUsers = async (req, res) => {
 }
 
 // Managers (and above) for the Add User manager dropdown, filtered by department.
+// finance_head/admin sit above departments and are always eligible — only
+// 'manager' candidates are department-scoped, so a manager can still be
+// linked to a finance_head as their reports-to.
 const getManagers = async (req, res) => {
   try {
-    const filter = { role: { $in: MANAGER_OR_HIGHER }, isActive: true }
-    if (req.query.department) filter.department = req.query.department
+    const filter = { isActive: true }
+    if (req.query.department) {
+      filter.$or = [
+        { role: { $in: ['finance_head', 'admin'] } },
+        { role: 'manager', department: req.query.department },
+      ]
+    } else {
+      filter.role = { $in: MANAGER_OR_HIGHER }
+    }
     const managers = await User.find(filter)
       .select('name email role department')
       .populate('department', 'name code')
@@ -80,6 +93,9 @@ const createUser = async (req, res) => {
       if (!managerDoc) return res.status(400).json({ message: 'Assigned manager not found' })
       if (!MANAGER_OR_HIGHER.includes(managerDoc.role)) {
         return res.status(400).json({ message: 'Assigned manager must have role manager or higher' })
+      }
+      if (role === 'manager' && !MANAGER_REPORTS_TO.includes(managerDoc.role)) {
+        return res.status(400).json({ message: 'A manager must report to finance_head or admin' })
       }
       // Same-department check is a warning, not a block.
       if (!managerDoc.department) {

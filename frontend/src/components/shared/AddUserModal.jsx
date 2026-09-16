@@ -4,7 +4,7 @@ import { Input } from '../ui/Input'
 import { Modal } from '../ui/Modal'
 import api from '../../api/index'
 
-const MANAGER_REQUIRED_ROLES = ['employee', 'sales']
+const MANAGER_REQUIRED_ROLES = ['employee', 'sales', 'manager']
 const CREATE_ROLE_OPTIONS = ['employee', 'sales', 'manager', 'admin']
 
 const blankForm = (role) => ({ name: '', email: '', role, department: '', manager: '', password: '' })
@@ -182,7 +182,7 @@ export function AddUserModal({ isOpen, onClose, onCreated, defaultRole = 'employ
           {managerShown && (
             <div className="flex flex-col gap-1">
               <label className="text-xs font-medium text-slate-600 uppercase tracking-wide">
-                Manager {managerRequired ? '' : '(optional)'}
+                {form.role === 'manager' ? 'Reports to (finance head)' : 'Manager'} {managerRequired ? '' : '(optional)'}
               </label>
               <select
                 name="manager"
@@ -191,13 +191,13 @@ export function AddUserModal({ isOpen, onClose, onCreated, defaultRole = 'employ
                 disabled={!form.department}
                 className="w-full px-3 py-2 text-sm rounded-md border border-surface-border bg-white text-slate-900 focus:outline-none focus:border-brand-primary disabled:bg-slate-50 disabled:text-slate-400"
               >
-                <option value="">{form.department ? 'Select manager…' : 'Select a department first'}</option>
+                <option value="">{form.department ? 'Select…' : 'Select a department first'}</option>
                 {managers.map((m) => (
                   <option key={m._id} value={m._id}>{m.name} ({m.role})</option>
                 ))}
               </select>
               {form.department && managers.length === 0 && (
-                <p className="text-xs text-slate-400">No managers found in this department.</p>
+                <p className="text-xs text-slate-400">No eligible managers found.</p>
               )}
             </div>
           )}

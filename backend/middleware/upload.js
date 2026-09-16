@@ -3,7 +3,7 @@ const cloudinaryStorage = require('multer-storage-cloudinary')
 const cloudinary = require('../config/cloudinary')
 
 const storage = cloudinaryStorage({
-  cloudinary: cloudinary,
+  cloudinary: { v2: cloudinary },
   folder: 'reimbursements',
   allowedFormats: ['jpg', 'jpeg', 'png', 'gif', 'webp'],
 })
