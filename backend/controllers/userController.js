@@ -13,6 +13,14 @@ const getUsers = async (req, res) => {
   try {
     const filter = {}
     if (req.query.role) filter.role = req.query.role
+
+    // Employee/sales only see colleagues in their own department — finance_head,
+    // admin, and manager stay unrestricted (same org-wide pattern used for
+    // leads/projects/reimbursements/manpower filtering elsewhere in this codebase).
+    if (['employee', 'sales'].includes(req.user.role)) {
+      filter.department = req.user.department
+    }
+
     const users = await User.find(filter)
       .select('-password')
       .populate('department', 'name code')
@@ -66,7 +74,7 @@ const getUser = async (req, res) => {
 // plaintext temp password so the admin can share it manually (never emailed).
 const createUser = async (req, res) => {
   try {
-    const { name, email, role, department, manager, password } = req.body
+    const { name, email, role, department, manager, password, designation } = req.body
 
     if (!CREATABLE_ROLES.includes(role)) {
       return res.status(400).json({ message: `Role must be one of: ${CREATABLE_ROLES.join(', ')}` })
@@ -114,6 +122,7 @@ const createUser = async (req, res) => {
       role,
       department,
       manager: managerDoc ? managerDoc._id : null,
+      designation: designation?.trim() || '',
       mustChangePassword: true,
       isActive: true,
     })

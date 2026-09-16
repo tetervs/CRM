@@ -10,6 +10,7 @@ const userSchema = new mongoose.Schema({
   // schema level, so existing users without a department stay valid.
   department: { type: mongoose.Schema.Types.ObjectId, ref: 'Department', default: null },
   manager:    { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+  designation: { type: String, trim: true, maxlength: 100, default: '' },
   mustChangePassword: { type: Boolean, default: false },
   isActive: { type: Boolean, default: true },
   failedLoginAttempts:   { type: Number, default: 0 },

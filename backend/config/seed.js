@@ -7,6 +7,8 @@ const seedDepartments = async () => {
     { name: 'FIS', code: 'FIS' },
     { name: 'BGV', code: 'BGV' },
     { name: 'IPR', code: 'IPR' },
+    { name: 'InQuest Academy', code: 'IQA' },
+    { name: 'Security Systems', code: 'SS' },
   ])
   console.log('[seed] Default departments created')
 }

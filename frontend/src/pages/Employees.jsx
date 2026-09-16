@@ -74,7 +74,7 @@ export default function Employees() {
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-surface-border">
-              {['Employee', 'Role', 'Department', 'Email', 'Status', ...(isPrivileged ? ['Actions'] : [])].map((col) => (
+              {['Employee', 'Role', 'Designation', 'Department', 'Email', 'Status', ...(isPrivileged ? ['Actions'] : [])].map((col) => (
                 <th key={col} className="text-left px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">
                   {col}
                 </th>
@@ -97,6 +97,7 @@ export default function Employees() {
                     {member.role}
                   </span>
                 </td>
+                <td className="px-5 py-3.5 text-slate-500 text-xs">{member.designation || '—'}</td>
                 <td className="px-5 py-3.5 text-slate-500 text-xs">{member.department?.name || '—'}</td>
                 <td className="px-5 py-3.5 text-slate-500 text-xs">{member.email}</td>
                 <td className="px-5 py-3.5">
@@ -116,7 +117,7 @@ export default function Employees() {
             ))}
             {employees.length === 0 && (
               <tr>
-                <td colSpan={isPrivileged ? 6 : 5} className="py-10 text-center text-sm text-slate-400">
+                <td colSpan={isPrivileged ? 7 : 6} className="py-10 text-center text-sm text-slate-400">
                   No employees found.
                 </td>
               </tr>

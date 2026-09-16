@@ -147,6 +147,11 @@ const createUserRules = [
     .optional({ nullable: true, checkFalsy: true })
     .isMongoId().withMessage('Manager must be a valid ID'),
 
+  body('designation')
+    .optional({ checkFalsy: true })
+    .trim()
+    .isLength({ max: 100 }).withMessage('Designation must be at most 100 characters'),
+
   body('password')
     .notEmpty().withMessage('Password is required')
     .isLength({ min: 6, max: 128 }).withMessage('Password must be 6–128 characters'),

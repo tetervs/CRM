@@ -7,7 +7,7 @@ import api from '../../api/index'
 const MANAGER_REQUIRED_ROLES = ['employee', 'sales', 'manager']
 const CREATE_ROLE_OPTIONS = ['employee', 'sales', 'manager', 'admin']
 
-const blankForm = (role) => ({ name: '', email: '', role, department: '', manager: '', password: '' })
+const blankForm = (role) => ({ name: '', email: '', role, department: '', manager: '', password: '', designation: '' })
 
 // Admin/finance_head user-creation modal. Reused by the Employees and Team pages.
 // onCreated fires after a successful create so the parent can refresh its list.
@@ -89,6 +89,7 @@ export function AddUserModal({ isOpen, onClose, onCreated, defaultRole = 'employ
         password: form.password,
       }
       if (managerShown && form.manager) payload.manager = form.manager
+      if (form.designation.trim()) payload.designation = form.designation.trim()
 
       const { data } = await api.post('/users', payload)
       setCreated(data)
@@ -162,6 +163,14 @@ export function AddUserModal({ isOpen, onClose, onCreated, defaultRole = 'employ
               ))}
             </select>
           </div>
+
+          <Input
+            label="Designation (optional)"
+            name="designation"
+            placeholder="e.g. Senior Analyst"
+            value={form.designation}
+            onChange={handleChange}
+          />
 
           <div className="flex flex-col gap-1">
             <label className="text-xs font-medium text-slate-600 uppercase tracking-wide">Department</label>
