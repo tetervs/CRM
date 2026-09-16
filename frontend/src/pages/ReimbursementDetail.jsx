@@ -103,9 +103,18 @@ export default function ReimbursementDetail() {
           <Card title="Expense Items">
             <div className="divide-y divide-surface-border">
               {r.items.map((item, i) => (
-                <div key={i} className="flex justify-between items-center py-2.5">
-                  <p className="text-sm text-slate-700">{item.description}</p>
-                  <p className="text-sm font-medium text-slate-900 shrink-0 ml-4">{formatCurrency(item.amount)}</p>
+                <div key={i} className="flex justify-between items-center py-2.5 gap-3">
+                  {item.proofFile && (
+                    <a href={item.proofFile} target="_blank" rel="noopener noreferrer" className="shrink-0">
+                      <img
+                        src={item.proofFile}
+                        alt={`Proof for ${item.description}`}
+                        className="w-10 h-10 object-cover rounded-md border border-surface-border hover:opacity-80 transition-opacity"
+                      />
+                    </a>
+                  )}
+                  <p className="text-sm text-slate-700 flex-1">{item.description}</p>
+                  <p className="text-sm font-medium text-slate-900 shrink-0">{formatCurrency(item.amount)}</p>
                 </div>
               ))}
               <div className="flex justify-between items-center pt-2.5 font-semibold">
@@ -121,6 +130,8 @@ export default function ReimbursementDetail() {
             </Card>
           )}
 
+          {/* Legacy fallback — older requests stored one shared image pool instead
+              of a proof per item. New requests always have item.proofFile above. */}
           {r.proofFiles?.length > 0 && (
             <Card title="Proof of Spending">
               <div className="flex flex-wrap gap-2">

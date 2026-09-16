@@ -37,19 +37,56 @@ const createReimbursement = async (req, res) => {
       return res.status(400).json({ message: 'At least one item is required' })
     }
 
-    if (items.length > 50) {
-      return res.status(400).json({ message: 'A reimbursement cannot have more than 50 items' })
+    // Matches the upload middleware's 10-file cap — every item now needs its own
+    // proof image, so the item limit can't exceed how many files a request can carry.
+    if (items.length > 10) {
+      return res.status(400).json({ message: 'A reimbursement cannot have more than 10 items' })
     }
 
     const invalidItem = items.find((i) => !i.description?.trim() || !(Number(i.amount) > 0))
     if (invalidItem) {
       return res.status(400).json({ message: 'Each item needs a description and amount greater than 0' })
     }
-    const validItems = items
 
     const longDesc = items.find((i) => i.description.trim().length > 200)
     if (longDesc) {
       return res.status(400).json({ message: 'Item description must be at most 200 characters' })
+    }
+
+    const missingClientId = items.find((i) => !i.clientId || typeof i.clientId !== 'string')
+    if (missingClientId) {
+      return res.status(400).json({ message: 'Each item must reference its proof upload' })
+    }
+
+    const uniqueClientIds = new Set(items.map((i) => i.clientId))
+    if (uniqueClientIds.size !== items.length) {
+      return res.status(400).json({ message: 'Each item must have a unique proof reference' })
+    }
+
+    // Match uploaded files back to items by clientId, not position — item order/count
+    // in the form can change independently of anything else, so array index isn't a
+    // safe key. Every item needs exactly one proof file, and no extra/orphaned files.
+    const files = req.files || []
+    if (files.length !== items.length) {
+      return res.status(400).json({ message: 'Each expense item requires exactly one proof image' })
+    }
+
+    const fileByClientId = new Map()
+    for (const file of files) {
+      const match = /^proof_(.+)$/.exec(file.fieldname)
+      if (!match) {
+        return res.status(400).json({ message: `Unexpected upload field: ${file.fieldname}` })
+      }
+      fileByClientId.set(match[1], file)
+    }
+
+    const validItems = items.map((i) => {
+      const file = fileByClientId.get(i.clientId)
+      if (!file) return null
+      return { description: i.description, amount: Number(i.amount), proofFile: file.secure_url }
+    })
+    if (validItems.some((i) => i === null)) {
+      return res.status(400).json({ message: 'Proof image missing for one or more items' })
     }
 
     const { notes, projectId } = req.body
@@ -65,14 +102,12 @@ const createReimbursement = async (req, res) => {
     }
 
     const totalAmount = validItems.reduce((sum, item) => sum + Number(item.amount), 0)
-    const proofFiles  = (req.files || []).map((f) => f.secure_url)
 
     const reimbursement = await Reimbursement.create({
       submittedBy: req.user._id,
-      items: validItems.map((i) => ({ description: i.description, amount: Number(i.amount) })),
+      items: validItems,
       totalAmount,
       notes,
-      proofFiles,
       ...(projectId ? { project: projectId } : {}),
     })
     await reimbursement.populate('submittedBy', 'name email role')

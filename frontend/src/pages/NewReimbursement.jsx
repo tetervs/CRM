@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { PageWrapper } from '../components/layout/PageWrapper'
 import { Button } from '../components/ui/Button'
@@ -7,7 +7,9 @@ import { Card } from '../components/ui/Card'
 import useReimbursementStore from '../store/reimbursementStore'
 import api from '../api/index'
 
-const emptyItem = () => ({ description: '', amount: '' })
+// clientId ties an item row to its proof upload (field name `proof_<clientId>`) —
+// stable identity, not array position, so removing/reordering rows can't misattach a file.
+const emptyItem = () => ({ clientId: crypto.randomUUID(), description: '', amount: '', proofFile: null, previewUrl: null })
 
 const formatCurrency = (val) =>
   new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(val || 0)
@@ -27,35 +29,14 @@ export default function NewReimbursement() {
   const [notes, setNotes] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
-  const [proofFiles, setProofFiles] = useState([])
-  const [previewUrls, setPreviewUrls] = useState([])
+  const [showMissingProof, setShowMissingProof] = useState(false)
 
-  const handleFileChange = (e) => {
-    const picked = Array.from(e.target.files)
-    setProofFiles((prev) => {
-      const combined = [...prev, ...picked]
-      return combined.slice(0, 10)
-    })
-    setPreviewUrls((prev) => {
-      const newUrls = picked.map((f) => URL.createObjectURL(f))
-      const combined = [...prev, ...newUrls]
-      if (combined.length > 10) {
-        combined.slice(10).forEach((url) => URL.revokeObjectURL(url))
-        return combined.slice(0, 10)
-      }
-      return combined
-    })
-    e.target.value = ''
-  }
-
-  const removeFile = (index) => {
-    URL.revokeObjectURL(previewUrls[index])
-    setProofFiles((prev) => prev.filter((_, i) => i !== index))
-    setPreviewUrls((prev) => prev.filter((_, i) => i !== index))
-  }
-
+  // Revoke every item's preview URL on unmount — a ref keeps this in sync with the
+  // latest items so the unmount cleanup isn't stuck looking at the initial render.
+  const itemsRef = useRef(items)
+  useEffect(() => { itemsRef.current = items }, [items])
   useEffect(() => {
-    return () => { previewUrls.forEach((url) => URL.revokeObjectURL(url)) }
+    return () => { itemsRef.current.forEach((i) => i.previewUrl && URL.revokeObjectURL(i.previewUrl)) }
   }, [])
 
   useEffect(() => {
@@ -74,30 +55,60 @@ export default function NewReimbursement() {
 
   const totalAmount = items.reduce((sum, item) => sum + (Number(item.amount) || 0), 0)
 
-  const handleItemChange = (index, field, value) => {
-    setItems((prev) => prev.map((item, i) => i === index ? { ...item, [field]: value } : item))
+  const handleItemChange = (clientId, field, value) => {
+    setItems((prev) => prev.map((item) => item.clientId === clientId ? { ...item, [field]: value } : item))
+  }
+
+  const handleItemFile = (clientId, file) => {
+    if (!file) return
+    setItems((prev) => prev.map((item) => {
+      if (item.clientId !== clientId) return item
+      if (item.previewUrl) URL.revokeObjectURL(item.previewUrl)
+      return { ...item, proofFile: file, previewUrl: URL.createObjectURL(file) }
+    }))
+    setShowMissingProof(false)
+  }
+
+  const removeItemFile = (clientId) => {
+    setItems((prev) => prev.map((item) => {
+      if (item.clientId !== clientId) return item
+      if (item.previewUrl) URL.revokeObjectURL(item.previewUrl)
+      return { ...item, proofFile: null, previewUrl: null }
+    }))
   }
 
   const addItem = () => setItems((prev) => [...prev, emptyItem()])
 
-  const removeItem = (index) => setItems((prev) => prev.filter((_, i) => i !== index))
+  const removeItem = (clientId) => setItems((prev) => {
+    const target = prev.find((i) => i.clientId === clientId)
+    if (target?.previewUrl) URL.revokeObjectURL(target.previewUrl)
+    return prev.filter((item) => item.clientId !== clientId)
+  })
 
   const handleSubmit = async (e) => {
     e.preventDefault()
     setError('')
+    setShowMissingProof(false)
+
     const validItems = items.filter((i) => i.description.trim() && Number(i.amount) > 0)
     if (validItems.length === 0) {
       setError('Add at least one item with a description and amount.')
       return
     }
+    if (validItems.some((i) => !i.proofFile)) {
+      setError('Every expense item needs a proof-of-spending image attached.')
+      setShowMissingProof(true)
+      return
+    }
+
     setSubmitting(true)
     try {
       const fd = new FormData()
-      fd.append('items', JSON.stringify(validItems))
+      fd.append('items', JSON.stringify(validItems.map(({ clientId, description, amount }) => ({ clientId, description, amount }))))
       if (notes) fd.append('notes', notes)
       if (prefilledProjectId) fd.append('projectId', prefilledProjectId)
       else if (selectedProjectId) fd.append('projectId', selectedProjectId)
-      proofFiles.forEach((file) => fd.append('proofFiles', file))
+      validItems.forEach((item) => fd.append(`proof_${item.clientId}`, item.proofFile))
 
       const result = await createReimbursement(fd)
       navigate(`/reimbursements/${result._id}`)
@@ -154,13 +165,13 @@ export default function NewReimbursement() {
 
         <Card title="Expense Items">
           <div className="space-y-3">
-            {items.map((item, index) => (
-              <div key={index} className="flex gap-3 items-end">
+            {items.map((item) => (
+              <div key={item.clientId} className="flex gap-3 items-end">
                 <div className="flex-1">
                   <Input
                     placeholder="Description (e.g. Travel — Mumbai to Pune)"
                     value={item.description}
-                    onChange={(e) => handleItemChange(index, 'description', e.target.value)}
+                    onChange={(e) => handleItemChange(item.clientId, 'description', e.target.value)}
                   />
                 </div>
                 <div className="w-32">
@@ -168,13 +179,51 @@ export default function NewReimbursement() {
                     type="number"
                     placeholder="Amount"
                     value={item.amount}
-                    onChange={(e) => handleItemChange(index, 'amount', e.target.value)}
+                    onChange={(e) => handleItemChange(item.clientId, 'amount', e.target.value)}
                   />
                 </div>
+
+                {/* Per-item proof upload — required, tied to this row via clientId */}
+                <div className="shrink-0">
+                  {item.previewUrl ? (
+                    <div className="relative group w-10 h-10">
+                      <img src={item.previewUrl} alt="Proof" className="w-10 h-10 object-cover rounded-md border border-surface-border" />
+                      <button
+                        type="button"
+                        onClick={() => removeItemFile(item.clientId)}
+                        className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-red-500 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                      >
+                        <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    </div>
+                  ) : (
+                    <label
+                      className={`flex items-center justify-center w-10 h-10 rounded-md border cursor-pointer transition-colors ${
+                        showMissingProof
+                          ? 'border-status-lost bg-red-50 text-status-lost'
+                          : 'border-dashed border-surface-border text-slate-400 hover:text-brand-primary hover:border-brand-primary'
+                      }`}
+                      title="Attach proof of spending"
+                    >
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                      </svg>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={(e) => handleItemFile(item.clientId, e.target.files[0])}
+                      />
+                    </label>
+                  )}
+                </div>
+
                 {items.length > 1 && (
                   <button
                     type="button"
-                    onClick={() => removeItem(index)}
+                    onClick={() => removeItem(item.clientId)}
                     className="mb-0.5 text-slate-400 hover:text-status-lost transition-colors"
                   >
                     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -210,49 +259,6 @@ export default function NewReimbursement() {
             placeholder="Any additional context for your reviewer..."
             className="w-full px-3 py-2 text-sm rounded-md border border-surface-border focus:outline-none focus:border-brand-primary focus:ring-2 focus:ring-brand-light resize-none"
           />
-        </Card>
-
-        <Card title="Proof of Spending (optional)">
-          <div className="space-y-3">
-            {proofFiles.length < 10 && (
-              <label className="flex items-center gap-2 cursor-pointer text-sm text-brand-primary hover:text-brand-hover font-medium">
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                </svg>
-                Add images ({proofFiles.length}/10)
-                <input
-                  type="file"
-                  accept="image/*"
-                  multiple
-                  className="hidden"
-                  onChange={handleFileChange}
-                />
-              </label>
-            )}
-
-            {proofFiles.length > 0 && (
-              <div className="flex flex-wrap gap-2">
-                {proofFiles.map((_file, i) => (
-                  <div key={i} className="relative group">
-                    <img
-                      src={previewUrls[i]}
-                      alt={`Proof ${i + 1}`}
-                      className="w-20 h-20 object-cover rounded-lg border border-surface-border"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => removeFile(i)}
-                      className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-red-500 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
-                    >
-                      <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M6 18L18 6M6 6l12 12" />
-                      </svg>
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
         </Card>
 
         <div className="flex justify-end gap-3">

@@ -3,6 +3,7 @@ const mongoose = require('mongoose')
 const itemSchema = new mongoose.Schema({
   description: { type: String, required: true, maxlength: 200 },
   amount:      { type: Number, required: true, min: 0 },
+  proofFile:   { type: String, required: true }, // Cloudinary secure URL for this item's receipt
 }, { _id: false })
 
 const reimbursementSchema = new mongoose.Schema({

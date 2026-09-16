@@ -23,13 +23,17 @@ import ReimbursementDetail from './pages/ReimbursementDetail'
 const FH_ADMIN           = ['finance_head', 'admin']
 const FH_ADMIN_MGR       = ['finance_head', 'admin', 'manager']
 const FH_ADMIN_MGR_SALES = ['finance_head', 'admin', 'manager', 'sales']
+const NOT_EMPLOYEE       = ['finance_head', 'admin', 'manager', 'sales']
+
+// Employees can't see /dashboard, so their "home"/fallback route is Projects instead.
+const getHomeRoute = (role) => (role === 'employee' ? '/projects' : '/dashboard')
 
 function ProtectedRoute({ children, roles }) {
   const { isAuthenticated, initialized, user } = useAuthStore()
   if (!initialized) return null
   if (!isAuthenticated) return <Navigate to="/login" replace />
   if (user?.mustChangePassword) return <Navigate to="/change-password" replace />
-  if (roles && !roles.includes(user?.role)) return <Navigate to="/dashboard" replace />
+  if (roles && !roles.includes(user?.role)) return <Navigate to={getHomeRoute(user?.role)} replace />
   return children
 }
 
@@ -44,7 +48,7 @@ function ChangePasswordRoute() {
 }
 
 export default function App() {
-  const { loadFromStorage, fetchMe, isAuthenticated } = useAuthStore()
+  const { loadFromStorage, fetchMe, isAuthenticated, user } = useAuthStore()
   const { startPolling, stopPolling } = useNotificationStore()
 
   useEffect(() => {
@@ -68,7 +72,7 @@ export default function App() {
         <Route path="/change-password"  element={<ChangePasswordRoute />} />
 
         <Route path="/dashboard" element={
-          <ProtectedRoute><Dashboard /></ProtectedRoute>
+          <ProtectedRoute roles={NOT_EMPLOYEE}><Dashboard /></ProtectedRoute>
         } />
 
         <Route path="/pipeline" element={
@@ -115,8 +119,8 @@ export default function App() {
           <ProtectedRoute roles={FH_ADMIN}><Departments /></ProtectedRoute>
         } />
 
-        <Route path="/"  element={<Navigate to="/dashboard" replace />} />
-        <Route path="*"  element={<Navigate to="/dashboard" replace />} />
+        <Route path="/"  element={<Navigate to={getHomeRoute(user?.role)} replace />} />
+        <Route path="*"  element={<Navigate to={getHomeRoute(user?.role)} replace />} />
       </Routes>
     </BrowserRouter>
   )

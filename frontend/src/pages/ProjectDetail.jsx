@@ -89,6 +89,7 @@ export default function ProjectDetail() {
   const canPullEmployee     = (isPrivileged || isHead) && project.status !== 'Completed'
   const canComplete         = isPrivileged
   const canSubmitReimbursement = isPrivileged || isHead || isMember
+  const canSeeBudget        = user?.role !== 'employee'
 
   const totalExpenses = project.expenses?.reduce((s, e) => s + e.amount, 0) || 0
   const profit    = project.budget - totalExpenses
@@ -368,36 +369,38 @@ export default function ProjectDetail() {
             </Card>
           )}
 
-          <Card title="Budget">
-            <div className="space-y-3">
-              <div>
-                <p className="text-xs text-slate-500 mb-1">Total budget</p>
-                <p className="text-xl font-bold text-slate-900">{formatCurrency(project.budget)}</p>
+          {canSeeBudget && (
+            <Card title="Budget">
+              <div className="space-y-3">
+                <div>
+                  <p className="text-xs text-slate-500 mb-1">Total budget</p>
+                  <p className="text-xl font-bold text-slate-900">{formatCurrency(project.budget)}</p>
+                </div>
+                <div>
+                  <div className="flex justify-between text-xs text-slate-500 mb-1">
+                    <span>Used</span>
+                    <span>{budgetUsed.toFixed(0)}%</span>
+                  </div>
+                  <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
+                    <div
+                      className={`h-full rounded-full ${budgetUsed >= 100 ? 'bg-status-lost' : budgetUsed >= 80 ? 'bg-status-contacted' : 'bg-status-won'}`}
+                      style={{ width: `${budgetUsed}%` }}
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  <div className="bg-slate-50 rounded-md p-2">
+                    <p className="text-slate-500">Spent</p>
+                    <p className="font-medium text-slate-900">{formatCurrency(totalExpenses)}</p>
+                  </div>
+                  <div className={`rounded-md p-2 ${profit < 0 ? 'bg-red-50' : 'bg-emerald-50'}`}>
+                    <p className="text-slate-500">Remaining</p>
+                    <p className={`font-medium ${profit < 0 ? 'text-status-lost' : 'text-status-won'}`}>{formatCurrency(profit)}</p>
+                  </div>
+                </div>
               </div>
-              <div>
-                <div className="flex justify-between text-xs text-slate-500 mb-1">
-                  <span>Used</span>
-                  <span>{budgetUsed.toFixed(0)}%</span>
-                </div>
-                <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
-                  <div
-                    className={`h-full rounded-full ${budgetUsed >= 100 ? 'bg-status-lost' : budgetUsed >= 80 ? 'bg-status-contacted' : 'bg-status-won'}`}
-                    style={{ width: `${budgetUsed}%` }}
-                  />
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-2 text-xs">
-                <div className="bg-slate-50 rounded-md p-2">
-                  <p className="text-slate-500">Spent</p>
-                  <p className="font-medium text-slate-900">{formatCurrency(totalExpenses)}</p>
-                </div>
-                <div className={`rounded-md p-2 ${profit < 0 ? 'bg-red-50' : 'bg-emerald-50'}`}>
-                  <p className="text-slate-500">Remaining</p>
-                  <p className={`font-medium ${profit < 0 ? 'text-status-lost' : 'text-status-won'}`}>{formatCurrency(profit)}</p>
-                </div>
-              </div>
-            </div>
-          </Card>
+            </Card>
+          )}
 
           <Card title="Team">
             <div className="space-y-2">

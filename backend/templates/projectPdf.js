@@ -80,15 +80,20 @@ const renderProjectPdf = (project, reimbursements, manpowerPulls, branding) => {
         drawField(doc, 'Source Lead',  project.lead?.title || '—')
       }
 
-      // ── Budget Summary ────────────────────────────────────────────────────────
-      drawSectionHeader(doc, 'Budget & Financials')
-
       const totalExpenses = project.expenses?.reduce((s, e) => s + e.amount, 0) || 0
-      const profit = project.budget - totalExpenses
 
-      drawField(doc, 'Budget',          fmtCurrency(project.budget))
-      drawField(doc, 'Total Expenses',  fmtCurrency(totalExpenses))
-      drawField(doc, 'Remaining',       fmtCurrency(profit))
+      // ── Budget Summary ────────────────────────────────────────────────────────
+      // project.budget is absent (not just falsy) when the requester's role had it
+      // stripped server-side — omit the whole section rather than show ₹NaN.
+      if (project.budget !== undefined) {
+        drawSectionHeader(doc, 'Budget & Financials')
+
+        const profit = project.budget - totalExpenses
+
+        drawField(doc, 'Budget',          fmtCurrency(project.budget))
+        drawField(doc, 'Total Expenses',  fmtCurrency(totalExpenses))
+        drawField(doc, 'Remaining',       fmtCurrency(profit))
+      }
 
       // ── Expenses Table ────────────────────────────────────────────────────────
       if (project.expenses?.length) {
@@ -140,13 +145,18 @@ const renderProjectPdf = (project, reimbursements, manpowerPulls, branding) => {
         drawSectionHeader(doc, 'Manpower Pulled')
 
         const mpCols = [
-          { label: 'Name',        width: 170 },
-          { label: 'Type',        width: 80  },
-          { label: 'Pulled By',   width: 130 },
-          { label: 'Reason',      width: 110 },
-          { label: 'Date',        width: 5   }, // remainder
+          { label: 'Name',        width: 150 },
+          { label: 'Type',        width: 70  },
+          { label: 'Pulled By',   width: 110 },
+          { label: 'Reason',      width: 100 },
+          { label: 'Date',        width: 65  }, // remainder
         ]
-        // Fix last col width
+        // Fix last col width. Previously the first four widths (170+80+130+110=490)
+        // left only 5pt out of CONTENT_W=495 for this column — drawTableRow then
+        // computes `width - 10` (-5, negative) for the text call, which sent
+        // pdfkit's line-wrapper into a near-infinite stall (looked like a hang:
+        // near-zero CPU, never resolves, never throws). Rebalanced widths above
+        // leave a real remainder here, same as the other tables below.
         mpCols[4].width = CONTENT_W - mpCols.slice(0, 4).reduce((s, c) => s + c.width, 0)
 
         drawTableHeader(doc, mpCols)

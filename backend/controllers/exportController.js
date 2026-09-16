@@ -142,13 +142,18 @@ const exportProjectPdf = async (req, res) => {
 
   let project, reimbursements, manpowerPulls
   try {
-    project = await Project.findById(projectId)
+    let projectQuery = Project.findById(projectId)
       .populate('projectHead',             'name email role')
       .populate('teamMembers',             'name email role')
       .populate('lead',                    'title status dealValue')
       .populate('expenses.loggedBy',       'name')
       .populate('progressUpdates.updatedBy', 'name')
       .populate('department',              'name code')
+
+    // Employees don't see project budgets — strip before it ever reaches the PDF template.
+    if (req.user.role === 'employee') projectQuery = projectQuery.select('-budget')
+
+    project = await projectQuery
 
     if (!project) {
       logExportAudit({ ...auditBase, status: 'failed', errorMessage: 'Project not found' })

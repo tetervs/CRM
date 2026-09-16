@@ -24,12 +24,17 @@ const getProjects = async (req, res) => {
         : { $and: [filter, leadCond] }
     }
 
-    const projects = await Project.find(filter)
+    let query = Project.find(filter)
       .populate('projectHead', 'name email')
       .populate('teamMembers', 'name email')
       .populate('lead', 'title')
       .populate('department', 'name code')
       .sort({ createdAt: -1 })
+
+    // Employees don't see project budgets — strip at the query, not just in the UI.
+    if (req.user.role === 'employee') query = query.select('-budget')
+
+    const projects = await query
 
     res.json(projects)
   } catch (err) {
@@ -39,13 +44,18 @@ const getProjects = async (req, res) => {
 
 const getProject = async (req, res) => {
   try {
-    const project = await Project.findById(req.params.id)
+    let query = Project.findById(req.params.id)
       .populate('projectHead', 'name email role')
       .populate('teamMembers', 'name email role')
       .populate('lead', 'title status dealValue')
       .populate('expenses.loggedBy', 'name')
       .populate('progressUpdates.updatedBy', 'name')
       .populate('department', 'name code')
+
+    // Employees don't see project budgets — strip at the query, not just in the UI.
+    if (req.user.role === 'employee') query = query.select('-budget')
+
+    const project = await query
 
     if (!project) return res.status(404).json({ message: 'Project not found' })
     if (!canAccess(project, req.user._id, req.user.role)) {

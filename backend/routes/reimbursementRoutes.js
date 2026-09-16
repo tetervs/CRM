@@ -12,7 +12,9 @@ const upload = require('../middleware/upload')
 router.use(protect)
 
 router.get('/',    getReimbursements)
-router.post('/',   upload.array('proofFiles', 10), createReimbursement)
+// upload.any() — field names are dynamic (proof_<clientId>, one per item), not static.
+// limits/fileFilter (5MB/file, image mimetypes only) still apply from the shared multer instance.
+router.post('/',   upload.any(), createReimbursement)
 router.get('/:id', mongoId(), validate, getReimbursement)
 
 router.patch('/:id/head-approve',

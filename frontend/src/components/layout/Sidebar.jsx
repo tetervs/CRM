@@ -4,10 +4,11 @@ import useAuthStore from '../../store/authStore'
 const FH_ADMIN         = ['finance_head', 'admin']
 const FH_ADMIN_MGR     = ['finance_head', 'admin', 'manager']
 const FH_ADMIN_MGR_SALES = ['finance_head', 'admin', 'manager', 'sales']
+const NOT_EMPLOYEE       = ['finance_head', 'admin', 'manager', 'sales']
 
 const navItems = [
   {
-    to: '/dashboard', label: 'Dashboard', roles: null,
+    to: '/dashboard', label: 'Dashboard', roles: NOT_EMPLOYEE,
     icon: (
       <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}

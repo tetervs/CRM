@@ -78,18 +78,20 @@ export default function Projects() {
                   <p className="text-xs text-slate-500 mb-3 truncate">Lead: {project.lead.title}</p>
                 )}
 
-                <div className="mb-3">
-                  <div className="flex justify-between text-xs text-slate-500 mb-1">
-                    <span>Budget used</span>
-                    <span>{formatCurrency(totalExpenses)} / {formatCurrency(project.budget)}</span>
+                {user?.role !== 'employee' && (
+                  <div className="mb-3">
+                    <div className="flex justify-between text-xs text-slate-500 mb-1">
+                      <span>Budget used</span>
+                      <span>{formatCurrency(totalExpenses)} / {formatCurrency(project.budget)}</span>
+                    </div>
+                    <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                      <div
+                        className={`h-full rounded-full transition-all ${budgetUsed >= 100 ? 'bg-status-lost' : budgetUsed >= 80 ? 'bg-status-contacted' : 'bg-status-won'}`}
+                        style={{ width: `${budgetUsed}%` }}
+                      />
+                    </div>
                   </div>
-                  <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                    <div
-                      className={`h-full rounded-full transition-all ${budgetUsed >= 100 ? 'bg-status-lost' : budgetUsed >= 80 ? 'bg-status-contacted' : 'bg-status-won'}`}
-                      style={{ width: `${budgetUsed}%` }}
-                    />
-                  </div>
-                </div>
+                )}
 
                 <div className="flex items-center justify-between text-xs text-slate-500">
                   <span className="truncate">Head: {project.projectHead?.name || '—'}</span>
