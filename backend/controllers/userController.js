@@ -1,4 +1,3 @@
-const crypto = require('crypto')
 const User = require('../models/User')
 const Department = require('../models/Department')
 
@@ -6,15 +5,6 @@ const CREATABLE_ROLES   = ['employee', 'sales', 'manager', 'admin']
 const MANAGER_REQUIRED   = ['employee', 'sales']
 const MANAGER_FORBIDDEN  = ['admin']
 const MANAGER_OR_HIGHER  = ['manager', 'admin', 'finance_head']
-
-// Readable temp password — excludes ambiguous chars (0/O, 1/l/I).
-const TEMP_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789'
-const generateTempPassword = (len = 12) => {
-  const bytes = crypto.randomBytes(len)
-  let out = ''
-  for (let i = 0; i < len; i++) out += TEMP_ALPHABET[bytes[i] % TEMP_ALPHABET.length]
-  return out
-}
 
 const getUsers = async (req, res) => {
   try {
@@ -63,7 +53,7 @@ const getUser = async (req, res) => {
 // plaintext temp password so the admin can share it manually (never emailed).
 const createUser = async (req, res) => {
   try {
-    const { name, email, role, department, manager } = req.body
+    const { name, email, role, department, manager, password } = req.body
 
     if (!CREATABLE_ROLES.includes(role)) {
       return res.status(400).json({ message: `Role must be one of: ${CREATABLE_ROLES.join(', ')}` })
@@ -101,11 +91,10 @@ const createUser = async (req, res) => {
       return res.status(400).json({ message: `A manager is required for the ${role} role` })
     }
 
-    const tempPassword = generateTempPassword()
     const created = await User.create({
       name: name.trim(),
       email: normEmail,
-      password: tempPassword,
+      password,
       role,
       department,
       manager: managerDoc ? managerDoc._id : null,
@@ -118,7 +107,7 @@ const createUser = async (req, res) => {
       .populate('department', 'name code')
       .populate('manager', 'name email role')
 
-    res.status(201).json({ user, tempPassword, ...(warning && { warning }) })
+    res.status(201).json({ user, ...(warning && { warning }) })
   } catch (err) {
     res.status(500).json({ message: err.message })
   }

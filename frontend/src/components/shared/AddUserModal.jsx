@@ -7,7 +7,7 @@ import api from '../../api/index'
 const MANAGER_REQUIRED_ROLES = ['employee', 'sales']
 const CREATE_ROLE_OPTIONS = ['employee', 'sales', 'manager', 'admin']
 
-const blankForm = (role) => ({ name: '', email: '', role, department: '', manager: '' })
+const blankForm = (role) => ({ name: '', email: '', role, department: '', manager: '', password: '' })
 
 // Admin/finance_head user-creation modal. Reused by the Employees and Team pages.
 // onCreated fires after a successful create so the parent can refresh its list.
@@ -17,8 +17,7 @@ export function AddUserModal({ isOpen, onClose, onCreated, defaultRole = 'employ
   const [managers, setManagers] = useState([])
   const [creating, setCreating] = useState(false)
   const [error, setError] = useState('')
-  const [created, setCreated] = useState(null) // { user, tempPassword, warning }
-  const [copied, setCopied] = useState(false)
+  const [created, setCreated] = useState(null) // { user, warning }
 
   const managerShown    = form.role !== 'admin'
   const managerRequired = MANAGER_REQUIRED_ROLES.includes(form.role)
@@ -29,7 +28,6 @@ export function AddUserModal({ isOpen, onClose, onCreated, defaultRole = 'employ
       setForm(blankForm(defaultRole))
       setError('')
       setCreated(null)
-      setCopied(false)
       setManagers([])
     }
   }, [isOpen, defaultRole])
@@ -69,7 +67,6 @@ export function AddUserModal({ isOpen, onClose, onCreated, defaultRole = 'employ
     setForm(blankForm(defaultRole))
     setError('')
     setCreated(null)
-    setCopied(false)
     setManagers([])
   }
 
@@ -78,6 +75,7 @@ export function AddUserModal({ isOpen, onClose, onCreated, defaultRole = 'employ
     if (!form.name.trim())  return setError('Name is required.')
     if (!form.email.trim()) return setError('Email is required.')
     if (!form.department)   return setError('Department is required.')
+    if (form.password.length < 6) return setError('Password must be at least 6 characters.')
     if (managerRequired && !form.manager) return setError(`A manager is required for the ${form.role} role.`)
 
     setCreating(true)
@@ -88,6 +86,7 @@ export function AddUserModal({ isOpen, onClose, onCreated, defaultRole = 'employ
         email: form.email.trim(),
         role: form.role,
         department: form.department,
+        password: form.password,
       }
       if (managerShown && form.manager) payload.manager = form.manager
 
@@ -100,14 +99,6 @@ export function AddUserModal({ isOpen, onClose, onCreated, defaultRole = 'employ
     } finally {
       setCreating(false)
     }
-  }
-
-  const copyTemp = async () => {
-    try {
-      await navigator.clipboard.writeText(created.tempPassword)
-      setCopied(true)
-      setTimeout(() => setCopied(false), 2000)
-    } catch {}
   }
 
   return (
@@ -126,20 +117,9 @@ export function AddUserModal({ isOpen, onClose, onCreated, defaultRole = 'employ
             </div>
           )}
 
-          <div>
-            <label className="text-xs font-medium text-slate-600 uppercase tracking-wide">Temporary password</label>
-            <div className="mt-1 flex items-center gap-2">
-              <code className="flex-1 px-3 py-2 text-sm font-mono bg-slate-100 border border-surface-border rounded-md text-slate-900 select-all">
-                {created.tempPassword}
-              </code>
-              <Button variant="secondary" size="sm" onClick={copyTemp}>
-                {copied ? 'Copied!' : 'Copy'}
-              </Button>
-            </div>
-            <p className="text-xs text-amber-600 mt-2">
-              Share this with the user securely. It won't be shown again. They must change it on first login.
-            </p>
-          </div>
+          <p className="text-xs text-slate-500">
+            They can log in with the password you set. They'll be asked to change it on first login.
+          </p>
 
           <div className="flex justify-end gap-2 pt-2">
             <Button variant="secondary" size="sm" onClick={resetForAnother}>Add another</Button>
@@ -156,6 +136,18 @@ export function AddUserModal({ isOpen, onClose, onCreated, defaultRole = 'employ
 
           <Input label="Full name" name="name" placeholder="Jane Smith" value={form.name} onChange={handleChange} required />
           <Input label="Email" name="email" type="email" placeholder="jane@company.com" value={form.email} onChange={handleChange} required />
+          <Input
+            label="Password"
+            name="password"
+            type="text"
+            placeholder="Set a password for this user"
+            value={form.password}
+            onChange={handleChange}
+            required
+          />
+          <p className="text-xs text-slate-400 -mt-3">
+            Share this with them directly. They'll be asked to change it on first login.
+          </p>
 
           <div className="flex flex-col gap-1">
             <label className="text-xs font-medium text-slate-600 uppercase tracking-wide">Role</label>
