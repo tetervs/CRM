@@ -20,16 +20,76 @@ const overview = async (req, res) => {
   }
 }
 
+// Shared with exportController's Analytics XLSX export, so the download always
+// matches whatever the dashboard is currently showing.
+const getPipelineData = async () => {
+  const statuses = ['New', 'Contacted', 'Proposal Sent', 'Won', 'Lost']
+  return Promise.all(
+    statuses.map(async (status) => ({
+      status,
+      count: await Lead.countDocuments({ status }),
+    }))
+  )
+}
+
+const getPerformanceData = async () => {
+  const [users, totalsByOwner, wonByOwner] = await Promise.all([
+    User.find({ isActive: true }).select('name email role'),
+    Lead.aggregate([{ $group: { _id: '$owner', totalLeads: { $sum: 1 } } }]),
+    Lead.aggregate([
+      { $match: { status: 'Won' } },
+      { $group: { _id: '$owner', won: { $sum: 1 }, revenue: { $sum: '$dealValue' } } },
+    ]),
+  ])
+
+  const totalsMap = Object.fromEntries(totalsByOwner.map((r) => [r._id.toString(), r.totalLeads]))
+  const wonMap = Object.fromEntries(wonByOwner.map((r) => [r._id.toString(), { won: r.won, revenue: r.revenue }]))
+
+  const stats = users.map((user) => {
+    const id = user._id.toString()
+    const { won = 0, revenue = 0 } = wonMap[id] || {}
+    return { user: { _id: user._id, name: user.name, role: user.role }, totalLeads: totalsMap[id] || 0, won, revenue }
+  })
+
+  return stats.sort((a, b) => b.revenue - a.revenue)
+}
+
+const getTrendData = async () => {
+  const now = new Date()
+  const sixMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 5, 1)
+
+  const results = await Lead.aggregate([
+    { $match: { status: 'Won', updatedAt: { $gte: sixMonthsAgo } } },
+    { $group: {
+      _id: { year: { $year: '$updatedAt' }, month: { $month: '$updatedAt' } },
+      revenue: { $sum: '$dealValue' },
+      count: { $sum: 1 },
+    }},
+    { $sort: { '_id.year': 1, '_id.month': 1 } },
+  ])
+
+  const dataMap = Object.fromEntries(
+    results.map((r) => [`${r._id.year}-${r._id.month}`, r])
+  )
+
+  const months = []
+  for (let i = 5; i >= 0; i--) {
+    const date = new Date(now.getFullYear(), now.getMonth() - i, 1)
+    const key = `${date.getFullYear()}-${date.getMonth() + 1}`
+    const entry = dataMap[key] || { revenue: 0, count: 0 }
+    months.push({
+      month: date.toLocaleString('en-US', { month: 'short' }),
+      revenue: entry.revenue,
+      count: entry.count,
+    })
+  }
+
+  return months
+}
+
 const pipeline = async (req, res) => {
   try {
-    const statuses = ['New', 'Contacted', 'Proposal Sent', 'Won', 'Lost']
-    const counts = await Promise.all(
-      statuses.map(async (status) => ({
-        status,
-        count: await Lead.countDocuments({ status }),
-      }))
-    )
-    res.json(counts)
+    res.json(await getPipelineData())
   } catch (err) {
     res.status(500).json({ message: err.message })
   }
@@ -37,25 +97,7 @@ const pipeline = async (req, res) => {
 
 const performance = async (req, res) => {
   try {
-    const [users, totalsByOwner, wonByOwner] = await Promise.all([
-      User.find({ isActive: true }).select('name email role'),
-      Lead.aggregate([{ $group: { _id: '$owner', totalLeads: { $sum: 1 } } }]),
-      Lead.aggregate([
-        { $match: { status: 'Won' } },
-        { $group: { _id: '$owner', won: { $sum: 1 }, revenue: { $sum: '$dealValue' } } },
-      ]),
-    ])
-
-    const totalsMap = Object.fromEntries(totalsByOwner.map((r) => [r._id.toString(), r.totalLeads]))
-    const wonMap = Object.fromEntries(wonByOwner.map((r) => [r._id.toString(), { won: r.won, revenue: r.revenue }]))
-
-    const stats = users.map((user) => {
-      const id = user._id.toString()
-      const { won = 0, revenue = 0 } = wonMap[id] || {}
-      return { user: { _id: user._id, name: user.name, role: user.role }, totalLeads: totalsMap[id] || 0, won, revenue }
-    })
-
-    res.json(stats.sort((a, b) => b.revenue - a.revenue))
+    res.json(await getPerformanceData())
   } catch (err) {
     res.status(500).json({ message: err.message })
   }
@@ -63,36 +105,7 @@ const performance = async (req, res) => {
 
 const trend = async (req, res) => {
   try {
-    const now = new Date()
-    const sixMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 5, 1)
-
-    const results = await Lead.aggregate([
-      { $match: { status: 'Won', updatedAt: { $gte: sixMonthsAgo } } },
-      { $group: {
-        _id: { year: { $year: '$updatedAt' }, month: { $month: '$updatedAt' } },
-        revenue: { $sum: '$dealValue' },
-        count: { $sum: 1 },
-      }},
-      { $sort: { '_id.year': 1, '_id.month': 1 } },
-    ])
-
-    const dataMap = Object.fromEntries(
-      results.map((r) => [`${r._id.year}-${r._id.month}`, r])
-    )
-
-    const months = []
-    for (let i = 5; i >= 0; i--) {
-      const date = new Date(now.getFullYear(), now.getMonth() - i, 1)
-      const key = `${date.getFullYear()}-${date.getMonth() + 1}`
-      const entry = dataMap[key] || { revenue: 0, count: 0 }
-      months.push({
-        month: date.toLocaleString('en-US', { month: 'short' }),
-        revenue: entry.revenue,
-        count: entry.count,
-      })
-    }
-
-    res.json(months)
+    res.json(await getTrendData())
   } catch (err) {
     res.status(500).json({ message: err.message })
   }
@@ -157,4 +170,4 @@ const userPerformance = async (req, res) => {
   }
 }
 
-module.exports = { overview, pipeline, performance, trend, userPerformance }
+module.exports = { overview, pipeline, performance, trend, userPerformance, getPipelineData, getPerformanceData, getTrendData }

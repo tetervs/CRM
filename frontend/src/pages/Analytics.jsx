@@ -5,8 +5,11 @@ import {
 } from 'recharts'
 import { PageWrapper } from '../components/layout/PageWrapper'
 import { Card } from '../components/ui/Card'
+import { Button } from '../components/ui/Button'
 import api from '../api/index'
 import useAuthStore from '../store/authStore'
+
+const PERFORMANCE_ROLES = ['head', 'admin', 'ca']
 
 const STATUS_COLORS = {
   'New': '#3B82F6',
@@ -38,25 +41,62 @@ export default function Analytics() {
   const [pipelineData, setPipelineData] = useState([])
   const [trendData, setTrendData] = useState([])
   const [performers, setPerformers] = useState([])
+  const [exporting, setExporting] = useState(false)
+  const [exportError, setExportError] = useState('')
+
+  const canSeePerformance = PERFORMANCE_ROLES.includes(user?.role)
 
   useEffect(() => {
     const requests = [
       api.get('/analytics/pipeline'),
       api.get('/analytics/trend'),
     ]
-    if (user?.role === 'admin') requests.push(api.get('/analytics/performance'))
+    if (canSeePerformance) requests.push(api.get('/analytics/performance'))
 
     Promise.all(requests).then(([pipe, trend, perf]) => {
       setPipelineData(pipe.data.map((d) => ({ status: d.status, count: d.count })))
       setTrendData(trend.data)
       if (perf) setPerformers(perf.data.map((p) => ({ name: p.user.name, leads: p.totalLeads, won: p.won, revenue: p.revenue })))
     }).catch(() => {})
-  }, [user?.role])
+  }, [canSeePerformance])
+
+  const handleExport = async () => {
+    setExporting(true)
+    setExportError('')
+    try {
+      const res = await api.get('/exports/analytics', { responseType: 'blob' })
+      const url  = window.URL.createObjectURL(new Blob([res.data]))
+      const link = document.createElement('a')
+      link.href  = url
+      link.setAttribute('download', `analytics_${new Date().toISOString().slice(0, 10)}.xlsx`)
+      document.body.appendChild(link)
+      link.click()
+      link.remove()
+      window.URL.revokeObjectURL(url)
+    } catch (err) {
+      let msg = 'Export failed. Please try again.'
+      if (err.response?.status === 429) {
+        msg = 'Export limit reached (10/hour). Try again later.'
+      } else if (err.response?.data instanceof Blob) {
+        try { msg = JSON.parse(await err.response.data.text()).message || msg } catch {}
+      }
+      setExportError(msg)
+    } finally {
+      setExporting(false)
+    }
+  }
 
   const pieData = pipelineData.filter((d) => d.count > 0)
 
   return (
     <PageWrapper>
+      <div className="flex items-center justify-end gap-2 mb-4">
+        {exportError && <span className="text-xs text-red-600">{exportError}</span>}
+        <Button variant="secondary" size="sm" loading={exporting} onClick={handleExport}>
+          Export (XLSX)
+        </Button>
+      </div>
+
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
         {/* Bar: leads per stage */}
         <Card title="Leads by Stage">
@@ -125,8 +165,8 @@ export default function Analytics() {
         </ResponsiveContainer>
       </Card>
 
-      {/* Top performers — admin only */}
-      {user?.role === 'admin' && (
+      {/* Top performers */}
+      {canSeePerformance && (
         <Card title="Top Performers">
           <table className="w-full text-sm">
             <thead>

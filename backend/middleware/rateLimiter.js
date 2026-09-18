@@ -59,4 +59,13 @@ const projectPdfLimiter = rateLimit({
   message: { message: 'Project PDF export limit reached (30 per hour). Please try again later.' },
 })
 
-module.exports = { authLimiter, generalLimiter, reimbursementExportLimiter, leadPdfLimiter, projectPdfLimiter }
+const analyticsExportLimiter = rateLimit({
+  windowMs:     60 * 60 * 1000,
+  max:          10,
+  keyGenerator: userKeyGenerator,
+  standardHeaders: true,
+  legacyHeaders:   false,
+  message: { message: 'Analytics export limit reached (10 per hour). Please try again later.' },
+})
+
+module.exports = { authLimiter, generalLimiter, reimbursementExportLimiter, leadPdfLimiter, projectPdfLimiter, analyticsExportLimiter }

@@ -5,6 +5,11 @@ const { buildReimbursementFilter } = require('../utils/exportFilters')
 
 const PRIVILEGED = ['head', 'admin', 'ca']
 
+// Reject's floor mirrors each role's only other action on the flow: a manager can only
+// reject what they'd otherwise head-approve (Pending), ca only what she'd otherwise
+// finance-approve (Head Approved). head/admin have no floor — full authority throughout.
+const REJECT_FLOOR = { manager: 'Pending', ca: 'Head Approved' }
+
 const populateFields = 'submittedBy headReviewedBy financeReviewedBy paidBy'
 
 const getReimbursements = async (req, res) => {
@@ -242,6 +247,10 @@ const rejectReimbursement = async (req, res) => {
     }
     if (['Paid', 'Rejected'].includes(reimbursement.status)) {
       return res.status(400).json({ message: 'Cannot reject a paid or already rejected reimbursement' })
+    }
+    const floor = REJECT_FLOOR[req.user.role]
+    if (floor && reimbursement.status !== floor) {
+      return res.status(400).json({ message: `Only ${floor} reimbursements can be rejected at this stage` })
     }
 
     reimbursement.status = 'Rejected'

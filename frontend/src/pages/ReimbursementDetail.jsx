@@ -59,7 +59,14 @@ export default function ReimbursementDetail() {
 
   const canHeadApprove   = (['head', 'admin'].includes(role) || isManager) && r.status === 'Pending' && !isOwnSubmission
   const canFinanceApprove = isPrivileged && r.status === 'Head Approved' && !isOwnSubmission
-  const canReject        = (isPrivileged || isManager) && !['Paid', 'Rejected'].includes(r.status) && !isOwnSubmission
+  // Reject's floor mirrors each role's only other action: manager only at Pending
+  // (what they'd otherwise head-approve), ca only at Head Approved (what she'd
+  // otherwise finance-approve). head/admin have no floor.
+  const canReject = !isOwnSubmission && !['Paid', 'Rejected'].includes(r.status) && (
+    ['head', 'admin'].includes(role) ||
+    (isManager && r.status === 'Pending') ||
+    (role === 'ca' && r.status === 'Head Approved')
+  )
   const canPay           = isPrivileged && r.status === 'Finance Approved' && !isOwnSubmission
   const hasActions       = canHeadApprove || canFinanceApprove || canReject || canPay
 

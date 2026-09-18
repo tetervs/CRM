@@ -7,8 +7,10 @@ const { parseDateRange }       = require('../utils/dateRange')
 const { getBrandingData }      = require('../utils/exportBranding')
 const { logExportAudit }       = require('../utils/auditLog')
 const { buildReimbursementsXlsx } = require('../templates/reimbursementsXlsx')
+const { buildAnalyticsXlsx }   = require('../templates/analyticsXlsx')
 const { renderLeadPdf }        = require('../templates/leadPdf')
 const { renderProjectPdf }     = require('../templates/projectPdf')
+const { getPipelineData, getPerformanceData, getTrendData } = require('../controllers/analyticsController')
 
 const getIp = (req) =>
   req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.ip || ''
@@ -211,4 +213,54 @@ const exportProjectPdf = async (req, res) => {
   logExportAudit({ ...auditBase, status: 'success', recordCount: 1 })
 }
 
-module.exports = { exportReimbursements, exportLeadPdf, exportProjectPdf }
+// ── Analytics → XLSX ────────────────────────────────────────────────────────────
+const exportAnalytics = async (req, res) => {
+  const auditBase = {
+    userId:     req.user._id,
+    userName:   req.user.name,
+    userRole:   req.user.role,
+    exportType: 'analytics_xlsx',
+    filters:    {},
+    ipAddress:  getIp(req),
+    userAgent:  req.headers['user-agent'] || '',
+  }
+
+  let pipeline, trend, performers
+  try {
+    [pipeline, trend, performers] = await Promise.all([
+      getPipelineData(),
+      getTrendData(),
+      getPerformanceData(),
+    ])
+  } catch (err) {
+    logExportAudit({ ...auditBase, status: 'failed', errorMessage: err.message })
+    return res.status(500).json({ message: 'Failed to fetch analytics data' })
+  }
+
+  let wb
+  try {
+    const now = new Date()
+    const sixMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 5, 1)
+    const branding = getBrandingData(req.user, { from: sixMonthsAgo, to: now }, 'Analytics Report')
+    wb = await buildAnalyticsXlsx({ pipeline, trend, performers }, branding)
+  } catch (err) {
+    logExportAudit({ ...auditBase, status: 'failed', errorMessage: err.message })
+    return res.status(500).json({ message: 'Failed to generate Excel file' })
+  }
+
+  const filename = `analytics_${new Date().toISOString().slice(0, 10)}.xlsx`
+
+  res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+  res.setHeader('Content-Disposition', `attachment; filename="${filename}"`)
+
+  try {
+    await wb.xlsx.write(res)
+    res.end()
+    logExportAudit({ ...auditBase, status: 'success', recordCount: pipeline.length + trend.length + performers.length })
+  } catch (err) {
+    logExportAudit({ ...auditBase, status: 'failed', errorMessage: err.message })
+    console.error('[Export] xlsx stream error:', err.message)
+  }
+}
+
+module.exports = { exportReimbursements, exportLeadPdf, exportProjectPdf, exportAnalytics }
