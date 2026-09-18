@@ -54,7 +54,7 @@ export default function LeadDetail() {
     }
   }, [lead])
 
-  const canConvert = ['finance_head', 'admin'].includes(user?.role) && lead?.status === 'Won'
+  const canConvert = ['head', 'admin'].includes(user?.role) && lead?.status === 'Won'
 
   const handleDownloadPdf = async () => {
     setDownloadingPdf(true)
@@ -88,7 +88,7 @@ export default function LeadDetail() {
     setConvertForm({ projectHeadId: '', departmentId: '', budget: lead?.dealValue || '' })
     try {
       const [managersRes, deptsRes] = await Promise.all([
-        users.length === 0 ? api.get('/users?role=manager') : Promise.resolve({ data: users }),
+        users.length === 0 ? api.get('/users/managers') : Promise.resolve({ data: users }),
         departments.length === 0 ? api.get('/departments') : Promise.resolve({ data: departments }),
       ])
       if (users.length === 0) setUsers(managersRes.data)
@@ -106,13 +106,17 @@ export default function LeadDetail() {
       setConvertError('Select a department.')
       return
     }
+    if (!(Number(convertForm.budget) > 0)) {
+      setConvertError('Enter an approved budget.')
+      return
+    }
     setConverting(true)
     setConvertError('')
     try {
       const project = await convertLead(id, {
         projectHeadId: convertForm.projectHeadId,
         departmentId:  convertForm.departmentId,
-        budget:        Number(convertForm.budget) || 0,
+        budget:        Number(convertForm.budget),
       })
       setShowConvertModal(false)
       navigate(`/projects/${project._id}`)
@@ -328,8 +332,8 @@ export default function LeadDetail() {
                 onChange={(e) => setConvertForm((f) => ({ ...f, projectHeadId: e.target.value }))}
                 className="w-full px-3 py-2 text-sm rounded-md border border-surface-border bg-white focus:outline-none focus:border-brand-primary"
               >
-                <option value="">Select a manager</option>
-                {users.map((u) => <option key={u._id} value={u._id}>{u.name}</option>)}
+                <option value="">Select a project head</option>
+                {users.map((u) => <option key={u._id} value={u._id}>{u.name} ({u.role})</option>)}
               </select>
             </div>
 
@@ -346,8 +350,9 @@ export default function LeadDetail() {
             </div>
 
             <Input
-              label="Budget (₹)"
+              label="Approved Budget (₹)"
               type="number"
+              required
               value={convertForm.budget}
               onChange={(e) => setConvertForm((f) => ({ ...f, budget: e.target.value }))}
             />

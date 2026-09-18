@@ -22,7 +22,7 @@ const ROLE_BADGE = {
   sales:        'bg-sky-100 text-sky-700',
   manager:      'bg-blue-100 text-blue-700',
   admin:        'bg-violet-100 text-violet-700',
-  finance_head: 'bg-emerald-100 text-emerald-700',
+  head: 'bg-emerald-100 text-emerald-700',
 }
 
 const formatCurrency = (val) =>
@@ -78,7 +78,7 @@ export default function ProjectDetail() {
     )
   }
 
-  const isPrivileged = ['finance_head', 'admin'].includes(user?.role)
+  const isPrivileged = ['head', 'admin'].includes(user?.role)
   const isHead = (project.projectHead?._id || project.projectHead)?.toString() === user?._id?.toString()
   const memberIds = project.teamMembers?.map((m) => (m._id || m).toString()) || []
   const isMember  = memberIds.includes(user?._id?.toString())

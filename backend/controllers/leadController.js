@@ -130,9 +130,10 @@ const convertToProject = async (req, res) => {
     const exists = await Project.findOne({ lead: lead._id })
     if (exists) return res.status(400).json({ message: 'A project already exists for this lead' })
 
+    const PROJECT_HEAD_ROLES = ['manager', 'head', 'admin']
     const headUser = await User.findById(projectHeadId)
-    if (!headUser || headUser.role !== 'manager') {
-      return res.status(400).json({ message: 'Project head must be a manager' })
+    if (!headUser || !PROJECT_HEAD_ROLES.includes(headUser.role)) {
+      return res.status(400).json({ message: 'Project head must be a manager, head, or admin' })
     }
 
     const dept = await Department.findById(departmentId)

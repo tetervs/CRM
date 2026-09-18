@@ -20,7 +20,7 @@ router.get('/reimbursements',
 
 // Lead PDF: same role gate as the lead list route (no employee access)
 router.get('/leads/:leadId',
-  requireRole('finance_head', 'admin', 'manager', 'sales'),
+  requireRole('head', 'admin', 'manager', 'sales'),
   mongoId('leadId'), validate,
   leadPdfLimiter,
   exportLeadPdf

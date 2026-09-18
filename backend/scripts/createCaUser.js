@@ -2,10 +2,10 @@ require('dotenv').config({ path: require('path').join(__dirname, '../.env') })
 const mongoose = require('mongoose')
 const User = require('../models/User')
 
-const NAME     = 'Vineet'
-const EMAIL    = 'vineet@in-quest.co.in'
-const PASSWORD = 'InQuest@3005'
-const ROLE     = 'head'
+const NAME     = 'Pooja'
+const EMAIL    = 'pooja@in-quest.co.in'
+const PASSWORD = 'InQuest@Ca01'
+const ROLE     = 'ca'
 
 async function run() {
   await mongoose.connect(process.env.MONGO_URI)

@@ -9,9 +9,9 @@ router.use(protect)
 
 router.get('/managers', getManagers)
 router.get('/',         getUsers)
-router.post('/',        createUserRules, validate, requireRole('finance_head', 'admin'), createUser)
-router.get('/:id',      mongoId(), validate, requireRole('finance_head', 'admin'), getUser)
-router.put('/:id/role', updateRoleRules, validate, requireRole('finance_head', 'admin'), updateRole)
-router.delete('/:id',   mongoId(), validate, requireRole('finance_head', 'admin'), deleteUser)
+router.post('/',        createUserRules, validate, requireRole('head', 'admin'), createUser)
+router.get('/:id',      mongoId(), validate, requireRole('head', 'admin'), getUser)
+router.put('/:id/role', updateRoleRules, validate, requireRole('head', 'admin'), updateRole)
+router.delete('/:id',   mongoId(), validate, requireRole('head', 'admin'), deleteUser)
 
 module.exports = router

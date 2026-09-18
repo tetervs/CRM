@@ -3,7 +3,7 @@ const Project = require('../models/Project')
 const User = require('../models/User')
 const { createNotification } = require('../utils/notify')
 
-const PRIVILEGED = ['finance_head', 'admin']
+const PRIVILEGED = ['head', 'admin']
 
 const createPull = async (req, res) => {
   try {

@@ -2,7 +2,7 @@ const Project = require('../models/Project')
 const { createNotification } = require('../utils/notify')
 const { buildProjectFilter } = require('../utils/exportFilters')
 
-const PRIVILEGED = ['finance_head', 'admin', 'manager']
+const PRIVILEGED = ['head', 'admin', 'manager']
 
 const canAccess = (project, userId, role) => {
   if (PRIVILEGED.includes(role)) return true
@@ -75,7 +75,7 @@ const updateProjectStatus = async (req, res) => {
 
     const { role, _id } = req.user
     const isHead = project.projectHead.toString() === _id.toString()
-    if (!['finance_head', 'admin'].includes(role) && !isHead) {
+    if (!['head', 'admin'].includes(role) && !isHead) {
       return res.status(403).json({ message: 'Access denied' })
     }
 

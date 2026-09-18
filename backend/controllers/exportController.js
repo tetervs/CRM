@@ -161,7 +161,7 @@ const exportProjectPdf = async (req, res) => {
     }
 
     // Verify access using the same logic as getProject
-    const PRIVILEGED = ['finance_head', 'admin', 'manager']
+    const PRIVILEGED = ['head', 'admin', 'manager']
     const userId = req.user._id.toString()
     const isPrivileged = PRIVILEGED.includes(req.user.role)
     const isHead = (project.projectHead?._id || project.projectHead).toString() === userId

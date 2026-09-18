@@ -161,7 +161,7 @@ const updateRoleRules = [
   mongoId(),
   body('role')
     .notEmpty().withMessage('Role is required')
-    .isIn(['finance_head', 'admin', 'manager', 'sales', 'employee']).withMessage('Role must be finance_head, admin, manager, sales, or employee'),
+    .isIn(['head', 'ca', 'admin', 'manager', 'sales', 'employee']).withMessage('Role must be head, ca, admin, manager, sales, or employee'),
 ]
 
 // ─── Departments ──────────────────────────────────────────────────────────────
@@ -205,8 +205,8 @@ const convertLeadRules = [
     .notEmpty().withMessage('Department is required')
     .isMongoId().withMessage('departmentId must be a valid ID'),
   body('budget')
-    .optional()
-    .isFloat({ min: 0 }).withMessage('Budget must be a non-negative number'),
+    .notEmpty().withMessage('Approved budget is required')
+    .isFloat({ min: 0.01 }).withMessage('Approved budget must be a positive number'),
 ]
 
 const projectStatusRules = [

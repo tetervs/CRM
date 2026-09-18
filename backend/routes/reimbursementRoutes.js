@@ -19,22 +19,22 @@ router.get('/:id', mongoId(), validate, getReimbursement)
 
 router.patch('/:id/head-approve',
   mongoId(), validate,
-  requireRole('finance_head', 'admin', 'manager'),
+  requireRole('head', 'admin', 'manager'),
   headApprove)
 
 router.patch('/:id/finance-approve',
   mongoId(), validate,
-  requireRole('finance_head', 'admin'),
+  requireRole('head', 'admin', 'ca'),
   financeApprove)
 
 router.patch('/:id/reject',
   reimbursementActionRules, validate,
-  requireRole('finance_head', 'admin', 'manager'),
+  requireRole('head', 'admin', 'manager', 'ca'),
   rejectReimbursement)
 
 router.patch('/:id/pay',
   mongoId(), validate,
-  requireRole('finance_head', 'admin'),
+  requireRole('head', 'admin', 'ca'),
   markPaid)
 
 module.exports = router

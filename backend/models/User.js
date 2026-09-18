@@ -5,7 +5,7 @@ const userSchema = new mongoose.Schema({
   name:     { type: String, required: true, trim: true, maxlength: 100 },
   email:    { type: String, required: true, unique: true, lowercase: true, trim: true, maxlength: 254 },
   password: { type: String, required: true },
-  role:     { type: String, enum: ['finance_head', 'admin', 'manager', 'sales', 'employee'], default: 'sales' },
+  role:     { type: String, enum: ['head', 'ca', 'admin', 'manager', 'sales', 'employee'], default: 'sales' },
   // department required for admin-created users — enforced in userController, not at
   // schema level, so existing users without a department stay valid.
   department: { type: mongoose.Schema.Types.ObjectId, ref: 'Department', default: null },

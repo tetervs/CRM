@@ -1,7 +1,7 @@
 const Milestone = require('../models/Milestone')
 const Project   = require('../models/Project')
 
-const PRIVILEGED = ['finance_head', 'admin', 'manager']
+const PRIVILEGED = ['head', 'admin', 'manager']
 
 const canAccessProject = (project, userId, role) => {
   if (PRIVILEGED.includes(role)) return true

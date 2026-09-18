@@ -6,7 +6,7 @@ const { createLeadRules, updateLeadRules, statusRules, convertLeadRules, mongoId
 const validate = require('../middleware/validate')
 
 router.use(protect)
-router.use(requireRole('finance_head', 'admin', 'manager', 'sales'))
+router.use(requireRole('head', 'admin', 'manager', 'sales'))
 
 router.get('/',                    getLeads)
 router.get('/overdue-followups',   getOverdueFollowups)
@@ -15,6 +15,6 @@ router.get('/:id',                 mongoId(), validate, getLead)
 router.put('/:id',        updateLeadRules, validate, updateLead)
 router.delete('/:id',     mongoId(), validate, requireRole('admin'), deleteLead)
 router.patch('/:id/status', statusRules, validate, updateStatus)
-router.post('/:id/convert', convertLeadRules, validate, requireRole('finance_head', 'admin'), convertToProject)
+router.post('/:id/convert', convertLeadRules, validate, requireRole('head', 'admin'), convertToProject)
 
 module.exports = router

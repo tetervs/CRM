@@ -4,7 +4,7 @@ const { requireRole }  = require('../middleware/roleMiddleware')
 const ExportAuditLog   = require('../models/ExportAuditLog')
 
 router.use(protect)
-router.use(requireRole('finance_head', 'admin'))
+router.use(requireRole('head', 'admin'))
 
 router.get('/exports', async (req, res) => {
   try {

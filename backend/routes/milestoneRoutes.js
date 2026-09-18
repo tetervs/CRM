@@ -8,8 +8,8 @@ const validate = require('../middleware/validate')
 router.use(protect)
 
 router.get('/project/:projectId',  mongoId('projectId'), validate, getMilestones)
-router.post('/',                   requireRole('finance_head', 'admin', 'manager'), createMilestone)
-router.patch('/:id',               [mongoId(), requireRole('finance_head', 'admin', 'manager')], validate, updateMilestone)
-router.delete('/:id',              [mongoId(), requireRole('finance_head', 'admin')],             validate, deleteMilestone)
+router.post('/',                   requireRole('head', 'admin', 'manager'), createMilestone)
+router.patch('/:id',               [mongoId(), requireRole('head', 'admin', 'manager')], validate, updateMilestone)
+router.delete('/:id',              [mongoId(), requireRole('head', 'admin')],             validate, deleteMilestone)
 
 module.exports = router

@@ -38,7 +38,7 @@ export default function Reimbursements() {
   const { user } = useAuthStore()
   const [activeTab, setActiveTab] = useState('All')
 
-  const canExport = ['admin', 'finance_head', 'manager'].includes(user?.role)
+  const canExport = ['admin', 'head', 'manager', 'ca'].includes(user?.role)
 
   const def = defaultRange()
   const [exportFrom, setExportFrom] = useState(def.from)

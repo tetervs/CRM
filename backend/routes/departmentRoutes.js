@@ -8,8 +8,8 @@ const validate = require('../middleware/validate')
 router.use(protect)
 
 router.get('/',               getDepartments)
-router.post('/',              departmentCreateRules, validate, requireRole('finance_head', 'admin'), createDepartment)
-router.put('/:id',            departmentUpdateRules, validate, requireRole('finance_head', 'admin'), updateDepartment)
-router.patch('/:id/toggle',   mongoId(), validate, requireRole('finance_head', 'admin'), toggleDepartment)
+router.post('/',              departmentCreateRules, validate, requireRole('head', 'admin'), createDepartment)
+router.put('/:id',            departmentUpdateRules, validate, requireRole('head', 'admin'), updateDepartment)
+router.patch('/:id/toggle',   mongoId(), validate, requireRole('head', 'admin'), toggleDepartment)
 
 module.exports = router

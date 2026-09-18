@@ -3,7 +3,7 @@ const Project = require('../models/Project')
 const { createNotification } = require('../utils/notify')
 const { buildReimbursementFilter } = require('../utils/exportFilters')
 
-const PRIVILEGED = ['finance_head', 'admin']
+const PRIVILEGED = ['head', 'admin', 'ca']
 
 const populateFields = 'submittedBy headReviewedBy financeReviewedBy paidBy'
 
@@ -183,8 +183,8 @@ const headApprove = async (req, res) => {
       link:        `/reimbursements/${reimbursement._id}`,
     })
 
-    // Route to the approving manager's own finance_head for final approval.
-    // (req.user.manager is null for finance_head/admin, who can finance-approve directly.)
+    // Route to the approving manager's own head for final approval.
+    // (req.user.manager is null for head/admin, who can finance-approve directly.)
     if (req.user.manager) {
       createNotification({
         recipientId: req.user.manager,

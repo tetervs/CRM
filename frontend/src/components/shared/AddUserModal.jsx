@@ -9,7 +9,7 @@ const CREATE_ROLE_OPTIONS = ['employee', 'sales', 'manager', 'admin']
 
 const blankForm = (role) => ({ name: '', email: '', role, department: '', manager: '', password: '', designation: '' })
 
-// Admin/finance_head user-creation modal. Reused by the Employees and Team pages.
+// Admin/head user-creation modal. Reused by the Employees and Team pages.
 // onCreated fires after a successful create so the parent can refresh its list.
 export function AddUserModal({ isOpen, onClose, onCreated, defaultRole = 'employee' }) {
   const [form, setForm] = useState(blankForm(defaultRole))
@@ -191,7 +191,7 @@ export function AddUserModal({ isOpen, onClose, onCreated, defaultRole = 'employ
           {managerShown && (
             <div className="flex flex-col gap-1">
               <label className="text-xs font-medium text-slate-600 uppercase tracking-wide">
-                {form.role === 'manager' ? 'Reports to (finance head)' : 'Manager'} {managerRequired ? '' : '(optional)'}
+                {form.role === 'manager' ? 'Reports to (head)' : 'Manager'} {managerRequired ? '' : '(optional)'}
               </label>
               <select
                 name="manager"

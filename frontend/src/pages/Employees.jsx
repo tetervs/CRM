@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Fragment } from 'react'
 import { PageWrapper } from '../components/layout/PageWrapper'
 import { Button } from '../components/ui/Button'
 import { Modal } from '../components/ui/Modal'
@@ -24,7 +24,7 @@ export default function Employees() {
   const [saving, setSaving] = useState(false)
   const [showAdd, setShowAdd] = useState(false)
 
-  const isPrivileged = ['finance_head', 'admin'].includes(user?.role)
+  const isPrivileged = ['head', 'admin'].includes(user?.role)
   const isAdmin      = user?.role === 'admin'
   const roleOptions  = isAdmin ? ROLE_OPTIONS_ADMIN : ROLE_OPTIONS_BASE
 
@@ -33,6 +33,13 @@ export default function Employees() {
       setEmployees(data.filter((u) => WORKER_ROLES.includes(u.role)))
     }).catch(() => {})
   }
+
+  const groups = employees.reduce((acc, member) => {
+    const dept = member.department?.name || 'Unassigned'
+    ;(acc[dept] ??= []).push(member)
+    return acc
+  }, {})
+  const departmentNames = Object.keys(groups).sort((a, b) => a === 'Unassigned' ? 1 : b === 'Unassigned' ? -1 : a.localeCompare(b))
 
   useEffect(() => { loadEmployees() }, [])
 
@@ -74,7 +81,7 @@ export default function Employees() {
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-surface-border">
-              {['Employee', 'Role', 'Designation', 'Department', 'Email', 'Status', ...(isPrivileged ? ['Actions'] : [])].map((col) => (
+              {['Employee', 'Role', 'Designation', 'Email', 'Status', ...(isPrivileged ? ['Actions'] : [])].map((col) => (
                 <th key={col} className="text-left px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">
                   {col}
                 </th>
@@ -82,42 +89,50 @@ export default function Employees() {
             </tr>
           </thead>
           <tbody className="divide-y divide-surface-border">
-            {employees.map((member) => (
-              <tr key={member._id} className="hover:bg-surface-bg transition-colors">
-                <td className="px-5 py-3.5">
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-full bg-slate-100 text-slate-600 text-sm font-bold flex items-center justify-center shrink-0">
-                      {member.name[0]}
-                    </div>
-                    <p className="font-medium text-slate-900">{member.name}</p>
-                  </div>
-                </td>
-                <td className="px-5 py-3.5">
-                  <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${ROLE_STYLES[member.role] || 'bg-slate-100 text-slate-600'}`}>
-                    {member.role}
-                  </span>
-                </td>
-                <td className="px-5 py-3.5 text-slate-500 text-xs">{member.designation || '—'}</td>
-                <td className="px-5 py-3.5 text-slate-500 text-xs">{member.department?.name || '—'}</td>
-                <td className="px-5 py-3.5 text-slate-500 text-xs">{member.email}</td>
-                <td className="px-5 py-3.5">
-                  <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium ${member.isActive ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}>
-                    <span className={`w-1.5 h-1.5 rounded-full ${member.isActive ? 'bg-status-won' : 'bg-slate-400'}`} />
-                    {member.isActive ? 'Active' : 'Inactive'}
-                  </span>
-                </td>
-                {isPrivileged && (
-                  <td className="px-5 py-3.5">
-                    <Button variant="ghost" size="sm" onClick={() => openEdit(member)}>
-                      Edit Role
-                    </Button>
+            {departmentNames.map((dept) => (
+              <Fragment key={dept}>
+                <tr className="bg-surface-bg">
+                  <td colSpan={isPrivileged ? 6 : 5} className="px-5 py-2 text-xs font-semibold text-slate-500 uppercase tracking-wide">
+                    {dept}
                   </td>
-                )}
-              </tr>
+                </tr>
+                {groups[dept].map((member) => (
+                  <tr key={member._id} className="hover:bg-surface-bg transition-colors">
+                    <td className="px-5 py-3.5">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-full bg-slate-100 text-slate-600 text-sm font-bold flex items-center justify-center shrink-0">
+                          {member.name[0]}
+                        </div>
+                        <p className="font-medium text-slate-900">{member.name}</p>
+                      </div>
+                    </td>
+                    <td className="px-5 py-3.5">
+                      <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${ROLE_STYLES[member.role] || 'bg-slate-100 text-slate-600'}`}>
+                        {member.role}
+                      </span>
+                    </td>
+                    <td className="px-5 py-3.5 text-slate-500 text-xs">{member.designation || '—'}</td>
+                    <td className="px-5 py-3.5 text-slate-500 text-xs">{member.email}</td>
+                    <td className="px-5 py-3.5">
+                      <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium ${member.isActive ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}>
+                        <span className={`w-1.5 h-1.5 rounded-full ${member.isActive ? 'bg-status-won' : 'bg-slate-400'}`} />
+                        {member.isActive ? 'Active' : 'Inactive'}
+                      </span>
+                    </td>
+                    {isPrivileged && (
+                      <td className="px-5 py-3.5">
+                        <Button variant="ghost" size="sm" onClick={() => openEdit(member)}>
+                          Edit Role
+                        </Button>
+                      </td>
+                    )}
+                  </tr>
+                ))}
+              </Fragment>
             ))}
             {employees.length === 0 && (
               <tr>
-                <td colSpan={isPrivileged ? 7 : 6} className="py-10 text-center text-sm text-slate-400">
+                <td colSpan={isPrivileged ? 6 : 5} className="py-10 text-center text-sm text-slate-400">
                   No employees found.
                 </td>
               </tr>

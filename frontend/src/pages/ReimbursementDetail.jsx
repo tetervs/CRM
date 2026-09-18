@@ -53,10 +53,10 @@ export default function ReimbursementDetail() {
 
   const r = current
   const { role } = user || {}
-  const isPrivileged = ['finance_head', 'admin'].includes(role)
+  const isPrivileged = ['head', 'admin', 'ca'].includes(role)
   const isManager = role === 'manager'
 
-  const canHeadApprove   = (isPrivileged || isManager) && r.status === 'Pending'
+  const canHeadApprove   = (['head', 'admin'].includes(role) || isManager) && r.status === 'Pending'
   const canFinanceApprove = isPrivileged && r.status === 'Head Approved'
   const canReject        = (isPrivileged || isManager) && !['Paid', 'Rejected'].includes(r.status)
   const canPay           = isPrivileged && r.status === 'Finance Approved'

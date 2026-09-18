@@ -20,10 +20,10 @@ import Reimbursements from './pages/Reimbursements'
 import NewReimbursement from './pages/NewReimbursement'
 import ReimbursementDetail from './pages/ReimbursementDetail'
 
-const FH_ADMIN           = ['finance_head', 'admin']
-const FH_ADMIN_MGR       = ['finance_head', 'admin', 'manager']
-const FH_ADMIN_MGR_SALES = ['finance_head', 'admin', 'manager', 'sales']
-const NOT_EMPLOYEE       = ['finance_head', 'admin', 'manager', 'sales']
+const FH_ADMIN           = ['head', 'admin']
+const FH_ADMIN_MGR       = ['head', 'admin', 'manager']
+const FH_ADMIN_MGR_SALES = ['head', 'admin', 'manager', 'sales']
+const NOT_EMPLOYEE       = ['head', 'admin', 'manager', 'sales', 'ca']
 
 // Employees can't see /dashboard, so their "home"/fallback route is Projects instead.
 const getHomeRoute = (role) => (role === 'employee' ? '/projects' : '/dashboard')

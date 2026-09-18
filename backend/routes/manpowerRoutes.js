@@ -5,7 +5,7 @@ const { requireRole } = require('../middleware/roleMiddleware')
 
 router.use(protect)
 
-router.get('/',  requireRole('finance_head', 'admin'), getPulls)
-router.post('/', requireRole('finance_head', 'admin', 'manager'), createPull)
+router.get('/',  requireRole('head', 'admin'), getPulls)
+router.post('/', requireRole('head', 'admin', 'manager'), createPull)
 
 module.exports = router
