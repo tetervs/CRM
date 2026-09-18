@@ -5,6 +5,7 @@ const {
   drawBanner, drawFooter, drawMeta, drawSectionHeader, drawField,
   DARK, LIGHT, BRAND, BORDER,
 } = require('./pdfHelpers')
+const { drawBudgetBar, drawReimbursementStatusBar } = require('./pdfCharts')
 
 const TABLE_HDR_BG = '#F1F5F9'
 const TABLE_HDR_FG = '#334155'
@@ -93,6 +94,9 @@ const renderProjectPdf = (project, reimbursements, manpowerPulls, branding) => {
         drawField(doc, 'Budget',          fmtCurrency(project.budget))
         drawField(doc, 'Total Expenses',  fmtCurrency(totalExpenses))
         drawField(doc, 'Remaining',       fmtCurrency(profit))
+
+        doc.moveDown(0.3)
+        drawBudgetBar(doc, project.budget, totalExpenses)
       }
 
       // ── Expenses Table ────────────────────────────────────────────────────────
@@ -177,6 +181,9 @@ const renderProjectPdf = (project, reimbursements, manpowerPulls, branding) => {
       // ── Linked Reimbursements ─────────────────────────────────────────────────
       if (reimbursements?.length) {
         drawSectionHeader(doc, 'Linked Reimbursements')
+
+        drawReimbursementStatusBar(doc, reimbursements)
+        doc.moveDown(0.2)
 
         const reimCols = [
           { label: 'Submitted By',   width: 130 },

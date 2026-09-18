@@ -80,6 +80,12 @@ const updateProjectStatus = async (req, res) => {
     if (!['head', 'admin'].includes(role) && !isHead) {
       return res.status(403).json({ message: 'Access denied' })
     }
+    // Completion has its own flow (completeProject) — it sets completedAt, computes
+    // the profit summary, and notifies the team. This route only ever toggles
+    // between the two non-terminal states.
+    if (req.body.status === 'Completed') {
+      return res.status(400).json({ message: 'Use the Mark Complete action to complete a project' })
+    }
 
     project.status = req.body.status
     await project.save()
