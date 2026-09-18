@@ -4,6 +4,9 @@ const User = require('../models/User')
 const { createNotification } = require('../utils/notify')
 
 const PRIVILEGED = ['head', 'admin']
+// 'ca' is read-only here — sees every pull like PRIVILEGED does, but is deliberately
+// excluded from PRIVILEGED itself, which also gates createPull/createProjectPull.
+const VIEW_PRIVILEGED = [...PRIVILEGED, 'ca']
 
 const createPull = async (req, res) => {
   try {
@@ -63,7 +66,7 @@ const getPulls = async (req, res) => {
     const { role, _id } = req.user
     let filter = {}
 
-    if (PRIVILEGED.includes(role)) {
+    if (VIEW_PRIVILEGED.includes(role)) {
       filter = {}
     } else if (role === 'manager') {
       const myProjects = await Project.find({ projectHead: _id }).select('_id')
@@ -144,7 +147,7 @@ const getProjectPulls = async (req, res) => {
     if (!project) return res.status(404).json({ message: 'Project not found' })
 
     const { role, _id } = req.user
-    const isPrivileged = PRIVILEGED.includes(role)
+    const isPrivileged = VIEW_PRIVILEGED.includes(role)
     const isHead   = project.projectHead.toString() === _id.toString()
     const isMember = project.teamMembers.some((m) => (m._id || m).toString() === _id.toString())
 

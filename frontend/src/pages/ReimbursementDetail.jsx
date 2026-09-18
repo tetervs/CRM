@@ -55,11 +55,12 @@ export default function ReimbursementDetail() {
   const { role } = user || {}
   const isPrivileged = ['head', 'admin', 'ca'].includes(role)
   const isManager = role === 'manager'
+  const isOwnSubmission = r.submittedBy?._id === user?._id
 
-  const canHeadApprove   = (['head', 'admin'].includes(role) || isManager) && r.status === 'Pending'
-  const canFinanceApprove = isPrivileged && r.status === 'Head Approved'
-  const canReject        = (isPrivileged || isManager) && !['Paid', 'Rejected'].includes(r.status)
-  const canPay           = isPrivileged && r.status === 'Finance Approved'
+  const canHeadApprove   = (['head', 'admin'].includes(role) || isManager) && r.status === 'Pending' && !isOwnSubmission
+  const canFinanceApprove = isPrivileged && r.status === 'Head Approved' && !isOwnSubmission
+  const canReject        = (isPrivileged || isManager) && !['Paid', 'Rejected'].includes(r.status) && !isOwnSubmission
+  const canPay           = isPrivileged && r.status === 'Finance Approved' && !isOwnSubmission
   const hasActions       = canHeadApprove || canFinanceApprove || canReject || canPay
 
   const doAction = async (action) => {

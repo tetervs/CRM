@@ -162,10 +162,15 @@ const getReimbursement = async (req, res) => {
   }
 }
 
+const isSelf = (reimbursement, userId) => reimbursement.submittedBy.toString() === userId.toString()
+
 const headApprove = async (req, res) => {
   try {
     const reimbursement = await Reimbursement.findById(req.params.id)
     if (!reimbursement) return res.status(404).json({ message: 'Reimbursement not found' })
+    if (isSelf(reimbursement, req.user._id)) {
+      return res.status(403).json({ message: 'You cannot approve your own reimbursement' })
+    }
     if (reimbursement.status !== 'Pending') {
       return res.status(400).json({ message: 'Only Pending reimbursements can be head-approved' })
     }
@@ -203,6 +208,9 @@ const financeApprove = async (req, res) => {
   try {
     const reimbursement = await Reimbursement.findById(req.params.id)
     if (!reimbursement) return res.status(404).json({ message: 'Reimbursement not found' })
+    if (isSelf(reimbursement, req.user._id)) {
+      return res.status(403).json({ message: 'You cannot approve your own reimbursement' })
+    }
     if (reimbursement.status !== 'Head Approved') {
       return res.status(400).json({ message: 'Only Head Approved reimbursements can be finance-approved' })
     }
@@ -229,6 +237,9 @@ const rejectReimbursement = async (req, res) => {
   try {
     const reimbursement = await Reimbursement.findById(req.params.id)
     if (!reimbursement) return res.status(404).json({ message: 'Reimbursement not found' })
+    if (isSelf(reimbursement, req.user._id)) {
+      return res.status(403).json({ message: 'You cannot reject your own reimbursement' })
+    }
     if (['Paid', 'Rejected'].includes(reimbursement.status)) {
       return res.status(400).json({ message: 'Cannot reject a paid or already rejected reimbursement' })
     }
@@ -254,6 +265,9 @@ const markPaid = async (req, res) => {
   try {
     const reimbursement = await Reimbursement.findById(req.params.id)
     if (!reimbursement) return res.status(404).json({ message: 'Reimbursement not found' })
+    if (isSelf(reimbursement, req.user._id)) {
+      return res.status(403).json({ message: 'You cannot mark your own reimbursement as paid' })
+    }
     if (reimbursement.status !== 'Finance Approved') {
       return res.status(400).json({ message: 'Only Finance Approved reimbursements can be marked paid' })
     }

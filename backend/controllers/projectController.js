@@ -58,7 +58,9 @@ const getProject = async (req, res) => {
     const project = await query
 
     if (!project) return res.status(404).json({ message: 'Project not found' })
-    if (!canAccess(project, req.user._id, req.user.role)) {
+    // 'ca' gets read-only access to every project (same view as head/admin) but is
+    // deliberately not in canAccess/PRIVILEGED, which also gates the write endpoints below.
+    if (!canAccess(project, req.user._id, req.user.role) && req.user.role !== 'ca') {
       return res.status(403).json({ message: 'Access denied' })
     }
 

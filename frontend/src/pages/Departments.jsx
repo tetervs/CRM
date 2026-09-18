@@ -3,9 +3,12 @@ import { PageWrapper } from '../components/layout/PageWrapper'
 import { Button } from '../components/ui/Button'
 import { Modal } from '../components/ui/Modal'
 import { Input } from '../components/ui/Input'
+import useAuthStore from '../store/authStore'
 import api from '../api/index'
 
 export default function Departments() {
+  const { user } = useAuthStore()
+  const isViewOnly = user?.role === 'ca'
   const [departments, setDepartments] = useState([])
   const [modalOpen, setModalOpen] = useState(false)
   const [editing, setEditing] = useState(null)
@@ -61,25 +64,27 @@ export default function Departments() {
     <PageWrapper>
       <div className="flex items-center justify-between mb-5">
         <p className="text-sm text-slate-500">{departments.filter((d) => d.isActive).length} active departments</p>
-        <Button
-          variant="primary"
-          size="sm"
-          onClick={openAdd}
-          icon={
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-            </svg>
-          }
-        >
-          Add Department
-        </Button>
+        {!isViewOnly && (
+          <Button
+            variant="primary"
+            size="sm"
+            onClick={openAdd}
+            icon={
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              </svg>
+            }
+          >
+            Add Department
+          </Button>
+        )}
       </div>
 
       <div className="bg-white border border-surface-border rounded-xl shadow-sm overflow-hidden">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-surface-border">
-              {['Name', 'Code', 'Status', 'Actions'].map((col) => (
+              {['Name', 'Code', 'Status', ...(isViewOnly ? [] : ['Actions'])].map((col) => (
                 <th key={col} className="text-left px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">
                   {col}
                 </th>
@@ -101,18 +106,20 @@ export default function Departments() {
                     {dept.isActive ? 'Active' : 'Inactive'}
                   </span>
                 </td>
-                <td className="px-5 py-3.5">
-                  <div className="flex items-center gap-2">
-                    <Button variant="secondary" size="sm" onClick={() => openEdit(dept)}>Edit</Button>
-                    <Button
-                      variant={dept.isActive ? 'danger' : 'secondary'}
-                      size="sm"
-                      onClick={() => handleToggle(dept)}
-                    >
-                      {dept.isActive ? 'Deactivate' : 'Activate'}
-                    </Button>
-                  </div>
-                </td>
+                {!isViewOnly && (
+                  <td className="px-5 py-3.5">
+                    <div className="flex items-center gap-2">
+                      <Button variant="secondary" size="sm" onClick={() => openEdit(dept)}>Edit</Button>
+                      <Button
+                        variant={dept.isActive ? 'danger' : 'secondary'}
+                        size="sm"
+                        onClick={() => handleToggle(dept)}
+                      >
+                        {dept.isActive ? 'Deactivate' : 'Activate'}
+                      </Button>
+                    </div>
+                  </td>
+                )}
               </tr>
             ))}
           </tbody>

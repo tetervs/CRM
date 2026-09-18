@@ -5,12 +5,15 @@ import { Input } from '../components/ui/Input'
 import { Modal } from '../components/ui/Modal'
 import { LeadTable } from '../components/shared/LeadTable'
 import useLeadStore from '../store/leadStore'
+import useAuthStore from '../store/authStore'
 
 const STATUSES = ['All', 'New', 'Contacted', 'Proposal Sent', 'Won', 'Lost']
 const EMPTY_LEAD = { title: '', contactName: '', contactEmail: '', contactPhone: '', dealValue: '', notes: '', status: 'New' }
 
 export default function Leads() {
+  const { user } = useAuthStore()
   const { leads, fetchLeads, createLead, updateLead, deleteLead, updateLeadStatus } = useLeadStore()
+  const isViewOnly = user?.role === 'ca'
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('All')
   const [modalOpen, setModalOpen] = useState(false)
@@ -103,18 +106,20 @@ export default function Leads() {
           {STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
         </select>
 
-        <Button
-          variant="primary"
-          size="sm"
-          onClick={openCreate}
-          icon={
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-            </svg>
-          }
-        >
-          Add Lead
-        </Button>
+        {!isViewOnly && (
+          <Button
+            variant="primary"
+            size="sm"
+            onClick={openCreate}
+            icon={
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              </svg>
+            }
+          >
+            Add Lead
+          </Button>
+        )}
       </div>
 
       {/* Table */}
@@ -122,7 +127,14 @@ export default function Leads() {
         <div className="px-5 py-3.5 border-b border-surface-border flex items-center justify-between">
           <span className="text-sm font-semibold text-slate-900">{filtered.length} leads</span>
         </div>
-        <LeadTable leads={filtered} onEdit={openEdit} onDelete={handleDelete} onStatusChange={handleStatusChange} onDuplicate={handleDuplicate} />
+        <LeadTable
+          leads={filtered}
+          onEdit={isViewOnly ? undefined : openEdit}
+          onDelete={isViewOnly ? undefined : handleDelete}
+          onStatusChange={isViewOnly ? undefined : handleStatusChange}
+          onDuplicate={isViewOnly ? undefined : handleDuplicate}
+          readOnly={isViewOnly}
+        />
       </div>
 
       {/* Modal */}

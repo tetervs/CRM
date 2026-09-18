@@ -15,7 +15,9 @@ const getMilestones = async (req, res) => {
   try {
     const project = await Project.findById(req.params.projectId)
     if (!project) return res.status(404).json({ message: 'Project not found' })
-    if (!canAccessProject(project, req.user._id, req.user.role)) {
+    // 'ca' is read-only — this bypass is scoped to the GET handler only; the
+    // write handlers below keep their own route-level requireRole (no 'ca').
+    if (!canAccessProject(project, req.user._id, req.user.role) && req.user.role !== 'ca') {
       return res.status(403).json({ message: 'Access denied' })
     }
 

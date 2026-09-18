@@ -6,6 +6,7 @@ import { Input } from '../components/ui/Input'
 import { Modal } from '../components/ui/Modal'
 import { KanbanCard } from '../components/shared/KanbanCard'
 import useLeadStore from '../store/leadStore'
+import useAuthStore from '../store/authStore'
 
 const COLUMNS = ['New', 'Contacted', 'Proposal Sent', 'Won', 'Lost']
 
@@ -20,16 +21,20 @@ const COLUMN_STYLES = {
 const EMPTY_LEAD = { title: '', contactName: '', contactEmail: '', contactPhone: '', dealValue: '', notes: '', status: 'New' }
 
 export default function Pipeline() {
+  const { user } = useAuthStore()
   const { leads, fetchLeads, updateLeadStatus, createLead } = useLeadStore()
   const [modalOpen, setModalOpen] = useState(false)
   const [form, setForm] = useState(EMPTY_LEAD)
   const [saving, setSaving] = useState(false)
+
+  const isViewOnly = user?.role === 'ca'
 
   useEffect(() => { fetchLeads() }, [fetchLeads])
 
   const byStatus = (status) => leads.filter((l) => l.status === status)
 
   const onDragEnd = (result) => {
+    if (isViewOnly) return
     const { destination, source, draggableId } = result
     if (!destination) return
     if (destination.droppableId === source.droppableId) return
@@ -52,18 +57,20 @@ export default function Pipeline() {
     <PageWrapper>
       <div className="flex items-center justify-between mb-5">
         <p className="text-sm text-slate-500">{leads.length} total leads</p>
-        <Button
-          variant="primary"
-          size="sm"
-          onClick={() => setModalOpen(true)}
-          icon={
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-            </svg>
-          }
-        >
-          Add Lead
-        </Button>
+        {!isViewOnly && (
+          <Button
+            variant="primary"
+            size="sm"
+            onClick={() => setModalOpen(true)}
+            icon={
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              </svg>
+            }
+          >
+            Add Lead
+          </Button>
+        )}
       </div>
 
       <DragDropContext onDragEnd={onDragEnd}>
@@ -89,7 +96,7 @@ export default function Pipeline() {
                       className={`flex-1 rounded-xl p-2 min-h-24 transition-colors duration-150 ${snapshot.isDraggingOver ? 'bg-brand-light' : 'bg-slate-100/60'}`}
                     >
                       {colLeads.map((lead, index) => (
-                        <Draggable key={lead._id} draggableId={lead._id} index={index}>
+                        <Draggable key={lead._id} draggableId={lead._id} index={index} isDragDisabled={isViewOnly}>
                           {(provided) => (
                             <KanbanCard lead={lead} provided={provided} />
                           )}

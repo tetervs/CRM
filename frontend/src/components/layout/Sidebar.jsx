@@ -1,9 +1,9 @@
 import { NavLink, useNavigate } from 'react-router-dom'
 import useAuthStore from '../../store/authStore'
 
-const FH_ADMIN         = ['head', 'admin']
-const FH_ADMIN_MGR     = ['head', 'admin', 'manager']
-const FH_ADMIN_MGR_SALES = ['head', 'admin', 'manager', 'sales']
+const FH_ADMIN         = ['head', 'admin', 'ca']
+const FH_ADMIN_MGR     = ['head', 'admin', 'manager', 'ca']
+const FH_ADMIN_MGR_SALES = ['head', 'admin', 'manager', 'sales', 'ca']
 const NOT_EMPLOYEE       = ['head', 'admin', 'manager', 'sales', 'ca']
 
 const navItems = [

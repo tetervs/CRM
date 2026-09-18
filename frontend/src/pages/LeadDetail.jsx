@@ -55,6 +55,7 @@ export default function LeadDetail() {
   }, [lead])
 
   const canConvert = ['head', 'admin'].includes(user?.role) && lead?.status === 'Won'
+  const isViewOnly = user?.role === 'ca'
 
   const handleDownloadPdf = async () => {
     setDownloadingPdf(true)
@@ -182,14 +183,14 @@ export default function LeadDetail() {
           {canConvert && (
             <Button variant="secondary" size="sm" onClick={openConvertModal}>Convert to Project</Button>
           )}
-          {!editing ? (
+          {!isViewOnly && (!editing ? (
             <Button variant="secondary" size="sm" onClick={() => setEditing(true)}>Edit</Button>
           ) : (
             <>
               <Button variant="secondary" size="sm" onClick={() => setEditing(false)}>Cancel</Button>
               <Button variant="primary" size="sm" loading={saving} onClick={handleSave}>Save</Button>
             </>
-          )}
+          ))}
         </div>
       </div>
 
@@ -261,16 +262,18 @@ export default function LeadDetail() {
         {/* Sidebar */}
         <div className="space-y-4">
           <Card title="Status">
-            <div className="mb-3">
+            <div className={isViewOnly ? '' : 'mb-3'}>
               <Badge status={lead.status} />
             </div>
-            <select
-              value={lead.status}
-              onChange={handleStatusChange}
-              className="w-full px-3 py-2 text-sm rounded-md border border-surface-border bg-white focus:outline-none focus:border-brand-primary"
-            >
-              {STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
-            </select>
+            {!isViewOnly && (
+              <select
+                value={lead.status}
+                onChange={handleStatusChange}
+                className="w-full px-3 py-2 text-sm rounded-md border border-surface-border bg-white focus:outline-none focus:border-brand-primary"
+              >
+                {STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
+              </select>
+            )}
           </Card>
 
           {lead.tags?.length > 0 && (
@@ -288,7 +291,13 @@ export default function LeadDetail() {
             <p className="text-xs text-slate-500">Potential deal value</p>
           </Card>
 
-          {lead.status !== 'Won' && lead.status !== 'Lost' && (
+          {lead.status !== 'Won' && lead.status !== 'Lost' && (isViewOnly ? (
+            followUpDate && (
+              <Card title="Follow-up Date">
+                <p className="text-sm text-slate-700">{formatDate(followUpDate)}</p>
+              </Card>
+            )
+          ) : (
             <Card title="Follow-up Date">
               <div className="space-y-2">
                 <input
@@ -314,7 +323,7 @@ export default function LeadDetail() {
                 </div>
               </div>
             </Card>
-          )}
+          ))}
         </div>
       </div>
 

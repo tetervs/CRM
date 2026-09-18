@@ -6,12 +6,12 @@ const { mongoId } = require('../middleware/validators')
 const validate = require('../middleware/validate')
 
 router.use(protect)
-router.use(requireRole('head', 'admin'))
+router.use(requireRole('head', 'admin', 'ca'))
 
 router.get('/overview',     overview)
 router.get('/pipeline',     pipeline)
-router.get('/performance',            requireRole('head', 'admin'), performance)
-router.get('/performance/:userId',    mongoId('userId'), validate, requireRole('head', 'admin'), userPerformance)
+router.get('/performance',            requireRole('head', 'admin', 'ca'), performance)
+router.get('/performance/:userId',    mongoId('userId'), validate, requireRole('head', 'admin', 'ca'), userPerformance)
 router.get('/trend',                  trend)
 
 module.exports = router
