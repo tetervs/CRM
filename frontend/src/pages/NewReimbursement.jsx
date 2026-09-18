@@ -90,6 +90,11 @@ export default function NewReimbursement() {
     setError('')
     setShowMissingProof(false)
 
+    if (!prefilledProjectId && !selectedProjectId) {
+      setError('Select a project — reimbursements must be linked to a project.')
+      return
+    }
+
     const validItems = items.filter((i) => i.description.trim() && Number(i.amount) > 0)
     if (validItems.length === 0) {
       setError('Add at least one item with a description and amount.')
@@ -149,13 +154,14 @@ export default function NewReimbursement() {
             </div>
           </Card>
         ) : (
-          <Card title="Project (optional)">
+          <Card title="Project">
             <select
               value={selectedProjectId}
               onChange={(e) => setSelectedProjectId(e.target.value)}
+              required
               className="px-3 py-2 text-sm rounded-md border border-surface-border focus:outline-none focus:border-brand-primary focus:ring-2 focus:ring-brand-light w-full"
             >
-              <option value="">-- No project --</option>
+              <option value="">Select a project…</option>
               {projects.map((p) => (
                 <option key={p._id} value={p._id}>{p.title}</option>
               ))}

@@ -162,6 +162,9 @@ const updateRoleRules = [
   body('role')
     .notEmpty().withMessage('Role is required')
     .isIn(['head', 'ca', 'admin', 'manager', 'sales', 'employee']).withMessage('Role must be head, ca, admin, manager, sales, or employee'),
+  body('manager')
+    .optional({ nullable: true, checkFalsy: true })
+    .isMongoId().withMessage('Manager must be a valid ID'),
 ]
 
 // ─── Departments ──────────────────────────────────────────────────────────────

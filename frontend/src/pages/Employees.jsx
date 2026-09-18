@@ -21,6 +21,8 @@ export default function Employees() {
   const [employees, setEmployees] = useState([])
   const [editTarget, setEditTarget] = useState(null)
   const [newRole, setNewRole] = useState('')
+  const [newManager, setNewManager] = useState('')
+  const [managers, setManagers] = useState([])
   const [saving, setSaving] = useState(false)
   const [showAdd, setShowAdd] = useState(false)
 
@@ -46,18 +48,27 @@ export default function Employees() {
   const openEdit = (member) => {
     setEditTarget(member)
     setNewRole(member.role)
+    setNewManager(member.manager?._id || '')
+    setManagers([])
+    api.get('/users/managers', { params: { department: member.department?._id } })
+      .then(({ data }) => setManagers(data))
+      .catch(() => setManagers([]))
   }
 
   const handleSave = async () => {
-    if (!newRole || newRole === editTarget.role) {
+    const roleChanged    = newRole && newRole !== editTarget.role
+    const managerChanged = (newManager || '') !== (editTarget.manager?._id || '')
+    if (!roleChanged && !managerChanged) {
       setEditTarget(null)
       return
     }
     setSaving(true)
     try {
-      await api.put(`/users/${editTarget._id}/role`, { role: newRole })
+      const payload = { role: newRole || editTarget.role }
+      if (managerChanged) payload.manager = newManager || null
+      const { data } = await api.put(`/users/${editTarget._id}/role`, payload)
       setEmployees((prev) => {
-        const updated = prev.map((m) => m._id === editTarget._id ? { ...m, role: newRole } : m)
+        const updated = prev.map((m) => m._id === editTarget._id ? data : m)
         return updated.filter((m) => WORKER_ROLES.includes(m.role))
       })
     } catch {}
@@ -141,10 +152,10 @@ export default function Employees() {
         </table>
       </div>
 
-      <Modal isOpen={!!editTarget} onClose={() => setEditTarget(null)} title={`Edit Role — ${editTarget?.name}`}>
+      <Modal isOpen={!!editTarget} onClose={() => setEditTarget(null)} title={`Edit Details — ${editTarget?.name}`}>
         <div className="space-y-4">
           <div className="flex flex-col gap-1">
-            <label className="text-xs font-medium text-slate-600 uppercase tracking-wide">New Role</label>
+            <label className="text-xs font-medium text-slate-600 uppercase tracking-wide">Role</label>
             <select
               value={newRole}
               onChange={(e) => setNewRole(e.target.value)}
@@ -160,6 +171,21 @@ export default function Employees() {
               Promoting to manager will move this user to the Team page.
             </p>
           )}
+          <div className="flex flex-col gap-1">
+            <label className="text-xs font-medium text-slate-600 uppercase tracking-wide">
+              {newRole === 'manager' ? 'Reports to (head)' : 'Manager'}
+            </label>
+            <select
+              value={newManager}
+              onChange={(e) => setNewManager(e.target.value)}
+              className="w-full px-3 py-2 text-sm rounded-md border border-surface-border bg-white focus:outline-none focus:border-brand-primary"
+            >
+              <option value="">Select…</option>
+              {managers.map((m) => (
+                <option key={m._id} value={m._id}>{m.name} ({m.role})</option>
+              ))}
+            </select>
+          </div>
           <div className="flex justify-end gap-2">
             <Button variant="secondary" size="sm" onClick={() => setEditTarget(null)}>Cancel</Button>
             <Button variant="primary" size="sm" loading={saving} onClick={handleSave}>Save</Button>

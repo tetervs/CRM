@@ -186,7 +186,7 @@ export default function Reimbursements() {
               <div className="flex items-center gap-3 shrink-0">
                 <span className="text-sm font-semibold text-slate-900">{formatCurrency(r.totalAmount)}</span>
                 <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_STYLE[r.status] || 'bg-slate-100 text-slate-600'}`}>
-                  {r.status}
+                  {r.status === 'Pending' && r.currentApprover ? `Pending — ${r.currentApprover.name}` : r.status}
                 </span>
               </div>
             </div>

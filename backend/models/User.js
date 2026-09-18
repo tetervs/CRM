@@ -10,6 +10,10 @@ const userSchema = new mongoose.Schema({
   // schema level, so existing users without a department stay valid.
   department: { type: mongoose.Schema.Types.ObjectId, ref: 'Department', default: null },
   manager:    { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+  // The single designated overall approver in the reimbursement chain (e.g. Praveen).
+  // A flag rather than a role check — head is not unique (there are currently two
+  // head-role users), so this has to be an explicit, DB-driven marker, not inferred.
+  isOverallApprover: { type: Boolean, default: false },
   designation: { type: String, trim: true, maxlength: 100, default: '' },
   mustChangePassword: { type: Boolean, default: false },
   isActive: { type: Boolean, default: true },

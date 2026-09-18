@@ -130,10 +130,11 @@ const convertToProject = async (req, res) => {
     const exists = await Project.findOne({ lead: lead._id })
     if (exists) return res.status(400).json({ message: 'A project already exists for this lead' })
 
-    const PROJECT_HEAD_ROLES = ['manager', 'head', 'admin']
+    // Project head can be any user — the reimbursement approval chain depends on
+    // this flexibility (an employee project head triggers the 4-step chain).
     const headUser = await User.findById(projectHeadId)
-    if (!headUser || !PROJECT_HEAD_ROLES.includes(headUser.role)) {
-      return res.status(400).json({ message: 'Project head must be a manager, head, or admin' })
+    if (!headUser) {
+      return res.status(400).json({ message: 'Project head not found' })
     }
 
     const dept = await Department.findById(departmentId)

@@ -1,16 +1,35 @@
 const Reimbursement = require('../models/Reimbursement')
 const Project = require('../models/Project')
+const User = require('../models/User')
 const { createNotification } = require('../utils/notify')
 const { buildReimbursementFilter } = require('../utils/exportFilters')
+const { buildApprovalChain, currentChainStep, isStepActor } = require('../utils/approvalChain')
 
 const PRIVILEGED = ['head', 'admin', 'ca']
 
 // Reject's floor mirrors each role's only other action on the flow: a manager can only
 // reject what they'd otherwise head-approve (Pending), ca only what she'd otherwise
 // finance-approve (Head Approved). head/admin have no floor — full authority throughout.
+// Legacy-flow only — reimbursements with an approvalChain use isStepActor instead.
 const REJECT_FLOOR = { manager: 'Pending', ca: 'Head Approved' }
 
-const populateFields = 'submittedBy headReviewedBy financeReviewedBy paidBy'
+const populateFields = 'submittedBy headReviewedBy financeReviewedBy paidBy currentApprover approvalChain.user approvalChain.reviewedBy'
+
+// Notifies whoever the chain's current step designates: the specific person for
+// a person-anchored step, or every active ca-role user for a role-anchored one
+// (ca / caPay — there's usually exactly one, but the step doesn't assume that).
+const notifyCurrentStep = async (reimbursement, message) => {
+  const step = currentChainStep(reimbursement.approvalChain)
+  if (!step) return
+  if (step.user) {
+    createNotification({ recipientId: step.user, message, type: 'reimbursement', link: `/reimbursements/${reimbursement._id}` })
+    return
+  }
+  const caUsers = await User.find({ role: 'ca', isActive: true }).select('_id')
+  caUsers.forEach((u) => {
+    createNotification({ recipientId: u._id, message, type: 'reimbursement', link: `/reimbursements/${reimbursement._id}` })
+  })
+}
 
 const getReimbursements = async (req, res) => {
   try {
@@ -21,6 +40,7 @@ const getReimbursements = async (req, res) => {
       .populate('headReviewedBy', 'name')
       .populate('financeReviewedBy', 'name')
       .populate('paidBy', 'name')
+      .populate('currentApprover', 'name role')
       .sort({ createdAt: -1 })
 
     res.json(reimbursements)
@@ -99,45 +119,55 @@ const createReimbursement = async (req, res) => {
       return res.status(400).json({ message: 'Notes must be at most 1000 characters' })
     }
 
-    if (projectId) {
-      const mongoose = require('mongoose')
-      if (!mongoose.Types.ObjectId.isValid(projectId)) {
-        return res.status(400).json({ message: 'projectId must be a valid ID' })
-      }
+    const mongoose = require('mongoose')
+    if (!projectId || !mongoose.Types.ObjectId.isValid(projectId)) {
+      return res.status(400).json({ message: 'A project is required' })
     }
+
+    const project = await Project.findById(projectId).populate('projectHead', 'role manager')
+    if (!project) {
+      return res.status(400).json({ message: 'Project not found' })
+    }
+
+    // ── Build the approval chain ────────────────────────────────────────────
+    const projectHead = project.projectHead
+    let projectHeadManager = null
+    if (!['admin', 'head', 'manager'].includes(projectHead.role)) {
+      if (!projectHead.manager) {
+        return res.status(400).json({
+          message: "This project's head has no manager assigned — required before reimbursements can be submitted against this project.",
+        })
+      }
+      projectHeadManager = await User.findById(projectHead.manager)
+    }
+
+    const overallApprover = await User.findOne({ isOverallApprover: true, isActive: true })
+    if (!overallApprover) {
+      return res.status(500).json({ message: 'No overall approver is configured — contact an admin.' })
+    }
+
+    const approvalChain = buildApprovalChain({
+      projectHead,
+      projectHeadManager,
+      overallApprover,
+      submittedById: req.user._id,
+    })
+    const firstStep = currentChainStep(approvalChain)
 
     const totalAmount = validItems.reduce((sum, item) => sum + Number(item.amount), 0)
 
     const reimbursement = await Reimbursement.create({
-      submittedBy: req.user._id,
-      items: validItems,
+      submittedBy:     req.user._id,
+      items:           validItems,
       totalAmount,
       notes,
-      ...(projectId ? { project: projectId } : {}),
+      project:         projectId,
+      approvalChain,
+      currentApprover: firstStep?.user || null,
     })
     await reimbursement.populate('submittedBy', 'name email role')
 
-    if (projectId) {
-      const project = await Project.findById(projectId)
-      if (project && project.projectHead) {
-        createNotification({
-          recipientId: project.projectHead,
-          message:     `New reimbursement request submitted for project "${project.title}" by ${req.user.name}`,
-          type:        'reimbursement',
-          link:        `/reimbursements/${reimbursement._id}`,
-        })
-      }
-    }
-
-    // Route to the submitter's manager for head-approval, if one is set.
-    if (req.user.manager) {
-      createNotification({
-        recipientId: req.user.manager,
-        message:     `New reimbursement request from ${req.user.name} needs your approval`,
-        type:        'reimbursement',
-        link:        `/reimbursements/${reimbursement._id}`,
-      })
-    }
+    await notifyCurrentStep(reimbursement, `New reimbursement request from ${req.user.name} needs your approval`)
 
     res.status(201).json(reimbursement)
   } catch (err) {
@@ -152,12 +182,18 @@ const getReimbursement = async (req, res) => {
       .populate('headReviewedBy', 'name')
       .populate('financeReviewedBy', 'name')
       .populate('paidBy', 'name')
+      .populate('currentApprover', 'name email role')
+      .populate('approvalChain.user', 'name email role')
+      .populate('approvalChain.reviewedBy', 'name')
 
     if (!reimbursement) return res.status(404).json({ message: 'Reimbursement not found' })
 
     const { role, _id } = req.user
     const isOwner = reimbursement.submittedBy._id.toString() === _id.toString()
-    if (!PRIVILEGED.includes(role) && role !== 'manager' && !isOwner) {
+    const isChainParticipant = reimbursement.approvalChain?.some(
+      (s) => s.user && s.user._id.toString() === _id.toString()
+    )
+    if (!PRIVILEGED.includes(role) && role !== 'manager' && !isOwner && !isChainParticipant) {
       return res.status(403).json({ message: 'Access denied' })
     }
 
@@ -169,10 +205,61 @@ const getReimbursement = async (req, res) => {
 
 const isSelf = (reimbursement, userId) => reimbursement.submittedBy.toString() === userId.toString()
 
+// Resolves the current step for a chain-based reimbursement and checks whether
+// req.user may act on it right now, for an action restricted to `allowedStepRoles`
+// (pass null — used by reject — to allow whatever the current step is). Returns
+// the step on success, or sends the error response itself and returns null.
+const resolveActionableStep = (req, res, reimbursement, allowedStepRoles) => {
+  const step = currentChainStep(reimbursement.approvalChain)
+  if (!step || (allowedStepRoles && !allowedStepRoles.includes(step.role))) {
+    res.status(400).json({ message: 'This reimbursement is not at a stage this action applies to' })
+    return null
+  }
+  if (isSelf(reimbursement, req.user._id)) {
+    res.status(403).json({ message: 'You cannot act on your own reimbursement' })
+    return null
+  }
+  if (!isStepActor(step, req.user)) {
+    res.status(403).json({ message: 'It is not your turn to act on this reimbursement' })
+    return null
+  }
+  return step
+}
+
 const headApprove = async (req, res) => {
   try {
     const reimbursement = await Reimbursement.findById(req.params.id)
     if (!reimbursement) return res.status(404).json({ message: 'Reimbursement not found' })
+
+    // ── Chain-based reimbursement: approves whichever non-CA step is current
+    // (project head, their manager, or the overall approver — all person-anchored). ──
+    if (reimbursement.approvalChain?.length) {
+      const step = resolveActionableStep(req, res, reimbursement, ['projectHead', 'projectHeadManager', 'overallApprover'])
+      if (!step) return
+
+      step.status = 'Approved'
+      step.reviewedBy = req.user._id
+      step.reviewedAt = new Date()
+      const next = currentChainStep(reimbursement.approvalChain)
+      reimbursement.currentApprover = next?.user || null
+      await reimbursement.save()
+      await reimbursement.populate(populateFields, 'name email role')
+
+      createNotification({
+        recipientId: reimbursement.submittedBy._id,
+        message:     `Your reimbursement request has been approved (${step.label})`,
+        type:        'reimbursement',
+        link:        `/reimbursements/${reimbursement._id}`,
+      })
+      if (next) await notifyCurrentStep(reimbursement, 'A reimbursement needs your approval')
+
+      return res.json(reimbursement)
+    }
+
+    // ── Legacy flat flow — pre-chain reimbursements only ──────────────────────
+    if (!['head', 'admin', 'manager'].includes(req.user.role)) {
+      return res.status(403).json({ message: 'Access denied' })
+    }
     if (isSelf(reimbursement, req.user._id)) {
       return res.status(403).json({ message: 'You cannot approve your own reimbursement' })
     }
@@ -213,6 +300,36 @@ const financeApprove = async (req, res) => {
   try {
     const reimbursement = await Reimbursement.findById(req.params.id)
     if (!reimbursement) return res.status(404).json({ message: 'Reimbursement not found' })
+
+    // ── Chain-based: CA's review step. Distinct from markPaid on purpose — an
+    // audit trail that separates "reviewed and accepted" from "actually paid". ──
+    if (reimbursement.approvalChain?.length) {
+      const step = resolveActionableStep(req, res, reimbursement, ['ca'])
+      if (!step) return
+
+      step.status = 'Approved'
+      step.reviewedBy = req.user._id
+      step.reviewedAt = new Date()
+      const next = currentChainStep(reimbursement.approvalChain) // the caPay step
+      reimbursement.currentApprover = next?.user || null
+      await reimbursement.save()
+      await reimbursement.populate(populateFields, 'name email role')
+
+      createNotification({
+        recipientId: reimbursement.submittedBy._id,
+        message:     `Your reimbursement request has been finance-approved`,
+        type:        'reimbursement',
+        link:        `/reimbursements/${reimbursement._id}`,
+      })
+      if (next) await notifyCurrentStep(reimbursement, 'A reimbursement is ready to mark as paid')
+
+      return res.json(reimbursement)
+    }
+
+    // ── Legacy flat flow — pre-chain reimbursements only ──────────────────────
+    if (!['head', 'admin', 'ca'].includes(req.user.role)) {
+      return res.status(403).json({ message: 'Access denied' })
+    }
     if (isSelf(reimbursement, req.user._id)) {
       return res.status(403).json({ message: 'You cannot approve your own reimbursement' })
     }
@@ -242,11 +359,41 @@ const rejectReimbursement = async (req, res) => {
   try {
     const reimbursement = await Reimbursement.findById(req.params.id)
     if (!reimbursement) return res.status(404).json({ message: 'Reimbursement not found' })
+    if (['Paid', 'Rejected'].includes(reimbursement.status)) {
+      return res.status(400).json({ message: 'Cannot reject a paid or already rejected reimbursement' })
+    }
+
+    // ── Chain-based: whoever currently holds the ball can reject instead of
+    // approving, at any step — including CA. ──────────────────────────────────
+    if (reimbursement.approvalChain?.length) {
+      const step = resolveActionableStep(req, res, reimbursement, null)
+      if (!step) return
+
+      step.status = 'Rejected'
+      step.reviewedBy = req.user._id
+      step.reviewedAt = new Date()
+      reimbursement.status = 'Rejected'
+      reimbursement.rejectionReason = req.body.reason || ''
+      reimbursement.currentApprover = null
+      await reimbursement.save()
+      await reimbursement.populate(populateFields, 'name email role')
+
+      createNotification({
+        recipientId: reimbursement.submittedBy._id,
+        message:     `Your reimbursement request has been rejected`,
+        type:        'reimbursement',
+        link:        `/reimbursements/${reimbursement._id}`,
+      })
+
+      return res.json(reimbursement)
+    }
+
+    // ── Legacy flat flow — pre-chain reimbursements only ──────────────────────
     if (isSelf(reimbursement, req.user._id)) {
       return res.status(403).json({ message: 'You cannot reject your own reimbursement' })
     }
-    if (['Paid', 'Rejected'].includes(reimbursement.status)) {
-      return res.status(400).json({ message: 'Cannot reject a paid or already rejected reimbursement' })
+    if (!['head', 'admin', 'manager', 'ca'].includes(req.user.role)) {
+      return res.status(403).json({ message: 'Access denied' })
     }
     const floor = REJECT_FLOOR[req.user.role]
     if (floor && reimbursement.status !== floor) {
@@ -274,6 +421,38 @@ const markPaid = async (req, res) => {
   try {
     const reimbursement = await Reimbursement.findById(req.params.id)
     if (!reimbursement) return res.status(404).json({ message: 'Reimbursement not found' })
+
+    // ── Chain-based: the terminal step. Only ca, no one else, at any point —
+    // same rule as the legacy branch below, just chain-driven instead of status-driven. ──
+    if (reimbursement.approvalChain?.length) {
+      const step = resolveActionableStep(req, res, reimbursement, ['caPay'])
+      if (!step) return
+
+      step.status = 'Approved'
+      step.reviewedBy = req.user._id
+      step.reviewedAt = new Date()
+      reimbursement.status = 'Paid'
+      reimbursement.paidBy = req.user._id
+      reimbursement.paidAt = new Date()
+      reimbursement.currentApprover = null
+      await reimbursement.save()
+      await reimbursement.populate(populateFields, 'name email role')
+
+      createNotification({
+        recipientId: reimbursement.submittedBy._id,
+        message:     `Your reimbursement has been paid`,
+        type:        'reimbursement',
+        link:        `/reimbursements/${reimbursement._id}`,
+      })
+
+      return res.json(reimbursement)
+    }
+
+    // ── Legacy flat flow — pre-chain reimbursements only. CA only, no one else,
+    // at any point — same absolute rule as the chain path above. ─────────────
+    if (req.user.role !== 'ca') {
+      return res.status(403).json({ message: 'Access denied' })
+    }
     if (isSelf(reimbursement, req.user._id)) {
       return res.status(403).json({ message: 'You cannot mark your own reimbursement as paid' })
     }

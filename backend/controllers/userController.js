@@ -138,13 +138,41 @@ const createUser = async (req, res) => {
   }
 }
 
+// `manager` is optional here — omit it to change only the role, unchanged from
+// before this field became editable post-creation. When present (including
+// explicit null, to clear it), it's validated the same way createUser does.
 const updateRole = async (req, res) => {
   try {
     const { role } = req.body
     const validRoles = ['admin', 'manager', 'sales', 'employee']
     if (!validRoles.includes(role)) return res.status(400).json({ message: 'Invalid role' })
 
-    const user = await User.findByIdAndUpdate(req.params.id, { role }, { new: true }).select('-password')
+    const update = { role }
+
+    if ('manager' in req.body) {
+      const manager = req.body.manager || null
+      if (manager) {
+        if (MANAGER_FORBIDDEN.includes(role)) {
+          return res.status(400).json({ message: `A ${role} cannot be assigned a manager` })
+        }
+        const managerDoc = await User.findById(manager)
+        if (!managerDoc) return res.status(400).json({ message: 'Assigned manager not found' })
+        if (!MANAGER_OR_HIGHER.includes(managerDoc.role)) {
+          return res.status(400).json({ message: 'Assigned manager must have role manager or higher' })
+        }
+        if (role === 'manager' && !MANAGER_REPORTS_TO.includes(managerDoc.role)) {
+          return res.status(400).json({ message: 'A manager must report to head or admin' })
+        }
+      } else if (MANAGER_REQUIRED.includes(role)) {
+        return res.status(400).json({ message: `A manager is required for the ${role} role` })
+      }
+      update.manager = manager
+    }
+
+    const user = await User.findByIdAndUpdate(req.params.id, update, { new: true })
+      .select('-password')
+      .populate('department', 'name code')
+      .populate('manager', 'name email role')
     if (!user) return res.status(404).json({ message: 'User not found' })
     res.json(user)
   } catch (err) {

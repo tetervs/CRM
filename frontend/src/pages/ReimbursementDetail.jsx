@@ -57,17 +57,35 @@ export default function ReimbursementDetail() {
   const isManager = role === 'manager'
   const isOwnSubmission = r.submittedBy?._id === user?._id
 
-  const canHeadApprove   = (['head', 'admin'].includes(role) || isManager) && r.status === 'Pending' && !isOwnSubmission
-  const canFinanceApprove = isPrivileged && r.status === 'Head Approved' && !isOwnSubmission
-  // Reject's floor mirrors each role's only other action: manager only at Pending
-  // (what they'd otherwise head-approve), ca only at Head Approved (what she'd
-  // otherwise finance-approve). head/admin have no floor.
-  const canReject = !isOwnSubmission && !['Paid', 'Rejected'].includes(r.status) && (
+  // Chain-based reimbursements (project mandatory going forward) carry their own
+  // approvalChain — whoever the chain's current pending step designates can act,
+  // person-anchored steps by exact user match, role-anchored (ca / caPay) by role.
+  const hasChain = r.approvalChain?.length > 0
+  const currentStep = hasChain ? (r.approvalChain.find((s) => s.status === 'Pending') || null) : null
+  const isMyTurn = !!currentStep && (currentStep.user ? currentStep.user._id === user?._id : role === 'ca')
+
+  const chainCanHeadApprove    = hasChain && isMyTurn && ['projectHead', 'projectHeadManager', 'overallApprover'].includes(currentStep?.role)
+  const chainCanFinanceApprove = hasChain && isMyTurn && currentStep?.role === 'ca'
+  const chainCanPay            = hasChain && isMyTurn && currentStep?.role === 'caPay'
+  const chainCanReject         = hasChain && isMyTurn && !['Paid', 'Rejected'].includes(r.status)
+
+  // Legacy flat flow — reimbursements with no chain (pre-dates the mandatory
+  // project requirement, or orphaned). Reject's floor mirrors each role's only
+  // other action: manager only at Pending, ca only at Head Approved. head/admin
+  // have no floor.
+  const legacyCanHeadApprove    = !hasChain && (['head', 'admin'].includes(role) || isManager) && r.status === 'Pending'
+  const legacyCanFinanceApprove = !hasChain && isPrivileged && r.status === 'Head Approved'
+  const legacyCanReject         = !hasChain && !['Paid', 'Rejected'].includes(r.status) && (
     ['head', 'admin'].includes(role) ||
     (isManager && r.status === 'Pending') ||
     (role === 'ca' && r.status === 'Head Approved')
   )
-  const canPay           = isPrivileged && r.status === 'Finance Approved' && !isOwnSubmission
+  const legacyCanPay = !hasChain && isPrivileged && r.status === 'Finance Approved'
+
+  const canHeadApprove    = (chainCanHeadApprove || legacyCanHeadApprove) && !isOwnSubmission
+  const canFinanceApprove = (chainCanFinanceApprove || legacyCanFinanceApprove) && !isOwnSubmission
+  const canReject          = (chainCanReject || legacyCanReject) && !isOwnSubmission
+  const canPay             = (chainCanPay || legacyCanPay) && !isOwnSubmission
   const hasActions       = canHeadApprove || canFinanceApprove || canReject || canPay
 
   const doAction = async (action) => {
@@ -85,7 +103,7 @@ export default function ReimbursementDetail() {
     setActionLoading('')
   }
 
-  const currentStep = TIMELINE.indexOf(r.status)
+  const legacyStepIndex = TIMELINE.indexOf(r.status)
 
   return (
     <PageWrapper>
@@ -101,7 +119,7 @@ export default function ReimbursementDetail() {
           <p className="text-sm text-slate-500">Submitted by {r.submittedBy?.name} · {formatDate(r.createdAt)}</p>
         </div>
         <span className={`shrink-0 px-2.5 py-1 rounded-full text-xs font-medium ${STATUS_STYLE[r.status] || 'bg-slate-100 text-slate-600'}`}>
-          {r.status}
+          {hasChain && r.status === 'Pending' && currentStep ? `Pending — ${currentStep.label}` : r.status}
         </span>
       </div>
 
@@ -168,7 +186,7 @@ export default function ReimbursementDetail() {
               <div className="flex flex-wrap gap-2">
                 {canHeadApprove && (
                   <Button size="sm" onClick={() => doAction('head-approve')} loading={actionLoading === 'head-approve'}>
-                    Approve (Head)
+                    {hasChain ? `Approve (${currentStep.label})` : 'Approve (Head)'}
                   </Button>
                 )}
                 {canFinanceApprove && (
@@ -192,7 +210,50 @@ export default function ReimbursementDetail() {
         {/* Timeline */}
         <div>
           <Card title="Timeline">
-            {r.status === 'Rejected' ? (
+            {hasChain ? (
+              <div>
+                {r.approvalChain.map((step, i) => {
+                  const isDone = step.status === 'Approved'
+                  const isRejected = step.status === 'Rejected'
+                  const isActive = step === currentStep
+                  const isLast = i === r.approvalChain.length - 1
+                  return (
+                    <div key={i} className="flex gap-3">
+                      <div className="flex flex-col items-center">
+                        <div className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 ${
+                          isRejected ? 'bg-red-100' : isDone || isActive ? 'bg-brand-primary' : 'bg-slate-100'
+                        }`}>
+                          {isRejected ? (
+                            <svg className="w-3.5 h-3.5 text-status-lost" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                          ) : isDone || isActive ? (
+                            <svg className="w-3.5 h-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                            </svg>
+                          ) : (
+                            <div className="w-2 h-2 rounded-full bg-slate-300" />
+                          )}
+                        </div>
+                        {!isLast && (
+                          <div className={`w-0.5 h-8 ${isDone ? 'bg-brand-primary' : 'bg-slate-200'}`} />
+                        )}
+                      </div>
+                      <div className="pb-5">
+                        <p className={`text-xs font-medium ${isRejected ? 'text-status-lost' : !isDone && !isActive ? 'text-slate-400' : 'text-slate-900'}`}>
+                          {step.label}{isRejected ? ' — Rejected' : ''}
+                        </p>
+                        {step.reviewedBy ? (
+                          <p className="text-xs text-slate-400 mt-0.5">{step.reviewedBy.name} · {formatDate(step.reviewedAt)}</p>
+                        ) : isDone ? (
+                          <p className="text-xs text-slate-400 mt-0.5">Skipped — approver was the submitter</p>
+                        ) : null}
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            ) : r.status === 'Rejected' ? (
               <div className="flex items-center gap-3">
                 <div className="w-8 h-8 rounded-full bg-red-100 flex items-center justify-center shrink-0">
                   <svg className="w-4 h-4 text-status-lost" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -207,8 +268,8 @@ export default function ReimbursementDetail() {
             ) : (
               <div>
                 {TIMELINE.map((step, i) => {
-                  const isDone = i < currentStep
-                  const isActive = i === currentStep
+                  const isDone = i < legacyStepIndex
+                  const isActive = i === legacyStepIndex
                   return (
                     <div key={step} className="flex gap-3">
                       <div className="flex flex-col items-center">

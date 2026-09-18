@@ -174,13 +174,13 @@ Auth header: `Authorization: Bearer <token>`
 | POST | /projects/:id/progress | project members | |
 | POST | /projects/:id/expenses | project members | |
 | PATCH | /projects/:id/complete | head, admin | returns summary |
-| GET | /reimbursements | any authed | role-filtered |
-| POST | /reimbursements | any authed | totalAmount server-calculated |
-| GET | /reimbursements/:id | owner/mgr/head/admin/ca | |
-| PATCH | /reimbursements/:id/head-approve | head/admin/manager | |
-| PATCH | /reimbursements/:id/finance-approve | head/admin/ca | |
-| PATCH | /reimbursements/:id/reject | head/admin/manager/ca | |
-| PATCH | /reimbursements/:id/pay | head/admin/ca | |
+| GET | /reimbursements | any authed | role-filtered; chain participants also see their pending steps |
+| POST | /reimbursements | any authed | totalAmount server-calculated; project is mandatory — builds an approvalChain |
+| GET | /reimbursements/:id | owner/mgr/head/admin/ca/chain-participant | |
+| PATCH | /reimbursements/:id/head-approve | chain: current step's actor · legacy: head/admin/manager | see Approval Chain below |
+| PATCH | /reimbursements/:id/finance-approve | chain: current step's actor (ca) · legacy: head/admin/ca | |
+| PATCH | /reimbursements/:id/reject | chain: current step's actor, any step · legacy: head/admin/manager/ca | |
+| PATCH | /reimbursements/:id/pay | chain: current step's actor (ca) · legacy: ca only — no one else, ever | |
 | GET | /notifications | any authed | ?unreadOnly=true |
 | PATCH | /notifications/read-all | any authed | |
 | PATCH | /notifications/:id/read | any authed | owner-check |
@@ -204,7 +204,10 @@ Auth header: `Authorization: Bearer <token>`
 ```js
 {
   name, email, password (hashed), role: ['head','ca','admin','manager','sales','employee'],
-  isActive (default true), department (ref), createdAt,
+  isActive (default true), department (ref), manager (ref User, settable at creation
+  and editable after via PUT /users/:id/role — see Edit Details on Employees/Team),
+  isOverallApprover (Section 8 — exactly one user should have this true; see
+  scripts/setOverallApprover.js), createdAt,
   verificationToken, isVerified, failedLoginAttempts, lockUntil
 }
 ```
@@ -243,7 +246,12 @@ Auth header: `Authorization: Bearer <token>`
   status: ['Pending','Head Approved','Finance Approved','Rejected','Paid'],
   notes, rejectionReason,
   headReviewedBy, headReviewedAt, financeReviewedBy, financeReviewedAt,
-  paidBy, paidAt, createdAt, updatedAt
+  paidBy, paidAt, project: ref Project, createdAt, updatedAt,
+  // New (Section 8) — present only on reimbursements submitted with the
+  // now-mandatory project. Legacy/orphaned records without one keep using the
+  // flat status transitions above instead. See Approval Chain below.
+  approvalChain: [{ role, label, user, status: ['Pending','Approved','Rejected'], reviewedBy, reviewedAt }],
+  currentApprover: ref User (null for role-anchored steps, e.g. ca/caPay),
 }
 ```
 
@@ -324,7 +332,7 @@ Dark sidebar, light content area. Dense, professional — no generic AI aestheti
 - **totalAmount**: always server-calculated in reimbursementController — never trusted from client
 - **seed.js**: runs on every server start, idempotent — only seeds if departments collection is empty
 - **notify.js**: non-blocking — createNotification is fire-and-forget, all errors caught and logged, never throws to callers
-- **Project head role**: must be `manager`, `head`, or `admin` — enforced in `convertToProject` backend (returns 400 if not), frontend LeadDetail fetches `GET /users/managers` to populate dropdown
+- **Project head role**: any active user, any role (Section 8) — `convertToProject` no longer restricts by role; frontend LeadDetail fetches `GET /users` to populate the dropdown. Who the project head is now determines the reimbursement approval chain length (3-step vs 4-step), so this needed to be fully open again.
 - **employee role**: no access to leads, pipeline, analytics, or manpower logging
 - **getUsers supports role filter**: `GET /users?role=manager` returns only managers
 
@@ -336,6 +344,17 @@ Dark sidebar, light content area. Dense, professional — no generic AI aestheti
 - Employees page shows only `sales`, `employee` roles; head/admin can edit role via modal (employee ↔ sales ↔ manager for admins)
 - `userController.updateRole` allows `employee` role (added in Section 6); `GET /users?role=` filter supported
 - `GET /manpower` server-side filtered (head/admin: all; manager: their projects; sales/employee: own pulls)
+
+### Section 8 Changes (complete) — reimbursement approval chain
+- Reimbursements now require a `project` (previously optional) — the project's `projectHead` determines the approval chain
+- Chain: **3-step** when projectHead role is admin/head/manager (Project Head → overall approver → CA); **4-step** when projectHead is any other role (Project Head → Project Head's manager → overall approver → CA). See `backend/utils/approvalChain.js`
+- The "overall approver" (currently Praveen) is whichever user has `isOverallApprover: true` — set via `backend/scripts/setOverallApprover.js`, not hardcoded
+- CA's stage is still two separate actions (`finance-approve` then `pay`), same as before — preserves the "reviewed vs. actually paid" audit trail. Only `ca` can ever mark paid, no override for head/admin, at any point, chain or legacy
+- Anyone whose turn it currently is in the chain can reject instead of approving, at any step
+- A chain step whose designated approver is the submitter auto-skips (no one approves their own request, even by chain coincidence) — person-anchored steps only; role-anchored steps (ca/caPay) rely on the existing self-check per action instead, so a different ca user can still act
+- `Reimbursement.status` stays `'Pending'` through the whole chain for new (chain-based) reimbursements — it only becomes `'Paid'`/`'Rejected'` at the end. The old `'Head Approved'`/`'Finance Approved'` values are legacy-only now; `approvalChain` carries the real step-by-step state
+- Older reimbursements with no `approvalChain` (pre-dates this section, or orphaned) keep running through the original flat head-approve/finance-approve/reject/pay logic untouched — see the chain-vs-legacy branch at the top of each action in `reimbursementController.js`. Not migrated, by design
+- `User.manager` (already existed) is now editable after account creation, not just at signup — "Edit Details" on Employees.jsx, "Reports To" on Team.jsx, both via `PUT /users/:id/role` with an optional `manager` field
 
 ### Section 7 Changes (complete)
 - `finance_head` renamed to `head`, keeping every permission it had

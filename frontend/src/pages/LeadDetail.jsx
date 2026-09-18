@@ -88,11 +88,13 @@ export default function LeadDetail() {
     setConvertError('')
     setConvertForm({ projectHeadId: '', departmentId: '', budget: lead?.dealValue || '' })
     try {
-      const [managersRes, deptsRes] = await Promise.all([
-        users.length === 0 ? api.get('/users/managers') : Promise.resolve({ data: users }),
+      const [usersRes, deptsRes] = await Promise.all([
+        users.length === 0 ? api.get('/users') : Promise.resolve({ data: users }),
         departments.length === 0 ? api.get('/departments') : Promise.resolve({ data: departments }),
       ])
-      if (users.length === 0) setUsers(managersRes.data)
+      // Project head can be any active user now — the reimbursement approval
+      // chain depends on this (see reimbursement chain design).
+      if (users.length === 0) setUsers(usersRes.data.filter((u) => u.isActive))
       if (departments.length === 0) setDepartments(deptsRes.data.filter((d) => d.isActive))
     } catch (_) {}
     setShowConvertModal(true)

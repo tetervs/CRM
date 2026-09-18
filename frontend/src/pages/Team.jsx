@@ -1,6 +1,7 @@
 import { useState, useEffect, Fragment } from 'react'
 import { PageWrapper } from '../components/layout/PageWrapper'
 import { Button } from '../components/ui/Button'
+import { Modal } from '../components/ui/Modal'
 import { UserPerformanceDrawer } from '../components/shared/UserPerformanceDrawer'
 import { AddUserModal } from '../components/shared/AddUserModal'
 import useAuthStore from '../store/authStore'
@@ -32,6 +33,10 @@ export default function Team() {
   const [team, setTeam] = useState([])
   const [analyseUserId, setAnalyseUserId] = useState(null)
   const [showAdd, setShowAdd] = useState(false)
+  const [managerEditTarget, setManagerEditTarget] = useState(null)
+  const [newManagerId, setNewManagerId] = useState('')
+  const [managerOptions, setManagerOptions] = useState([])
+  const [savingManager, setSavingManager] = useState(false)
 
   const isAdmin     = user?.role === 'admin'
   const isPrivileged = ['head', 'admin'].includes(user?.role)
@@ -54,6 +59,27 @@ export default function Team() {
   const handleToggleActive = async (id) => {
     await api.delete(`/users/${id}`)
     setTeam((t) => t.map((m) => (m._id === id ? { ...m, isActive: !m.isActive } : m)))
+  }
+
+  const openManagerEdit = (member) => {
+    setManagerEditTarget(member)
+    setNewManagerId(member.manager?._id || '')
+    setManagerOptions([])
+    api.get('/users/managers').then(({ data }) => setManagerOptions(data)).catch(() => {})
+  }
+
+  const handleSaveManager = async () => {
+    if (!newManagerId) { setManagerEditTarget(null); return }
+    setSavingManager(true)
+    try {
+      const { data } = await api.put(`/users/${managerEditTarget._id}/role`, {
+        role: managerEditTarget.role,
+        manager: newManagerId,
+      })
+      setTeam((t) => t.map((m) => (m._id === managerEditTarget._id ? data : m)))
+    } catch {}
+    setSavingManager(false)
+    setManagerEditTarget(null)
   }
 
   return (
@@ -133,6 +159,11 @@ export default function Team() {
                             <Button variant="ghost" size="sm" onClick={() => setAnalyseUserId(member._id)}>
                               Analyse
                             </Button>
+                            {isAdmin && member.role === 'manager' && (
+                              <Button variant="ghost" size="sm" onClick={() => openManagerEdit(member)}>
+                                Reports To
+                              </Button>
+                            )}
                             {isAdmin && !SPECIAL_ROLES.includes(member.role) && (
                               <Button
                                 variant={member.isActive ? 'danger' : 'secondary'}
@@ -165,6 +196,28 @@ export default function Team() {
         userId={analyseUserId}
         onClose={() => setAnalyseUserId(null)}
       />
+
+      <Modal isOpen={!!managerEditTarget} onClose={() => setManagerEditTarget(null)} title={`Reports To — ${managerEditTarget?.name}`}>
+        <div className="space-y-4">
+          <div className="flex flex-col gap-1">
+            <label className="text-xs font-medium text-slate-600 uppercase tracking-wide">Manager (head or admin)</label>
+            <select
+              value={newManagerId}
+              onChange={(e) => setNewManagerId(e.target.value)}
+              className="w-full px-3 py-2 text-sm rounded-md border border-surface-border bg-white focus:outline-none focus:border-brand-primary"
+            >
+              <option value="">Select…</option>
+              {managerOptions.filter((m) => m.role !== 'manager').map((m) => (
+                <option key={m._id} value={m._id}>{m.name} ({m.role})</option>
+              ))}
+            </select>
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button variant="secondary" size="sm" onClick={() => setManagerEditTarget(null)}>Cancel</Button>
+            <Button variant="primary" size="sm" loading={savingManager} onClick={handleSaveManager}>Save</Button>
+          </div>
+        </div>
+      </Modal>
 
       <AddUserModal
         isOpen={showAdd}
