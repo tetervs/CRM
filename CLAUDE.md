@@ -26,7 +26,6 @@ SalesPilot — Monday CRM-like Sales Management Tool. MERN stack.
 | Backend | Node.js, Express |
 | Database | MongoDB + Mongoose |
 | Auth | JWT + bcryptjs |
-| Email | Nodemailer (SMTP) |
 
 ---
 
@@ -66,7 +65,7 @@ crm-project/
 │       │   ├── layout/    # Sidebar.jsx, Navbar.jsx, PageWrapper.jsx
 │       │   └── shared/    # KanbanCard.jsx, LeadTable.jsx, UserPerformanceDrawer.jsx
 │       ├── pages/
-│       │   # Login, Register, VerifyEmail
+│       │   # Login, ChangePasswordFirst
 │       │   # Dashboard, Pipeline, Leads, LeadDetail
 │       │   # Team, Employees, Manpower
 │       │   # Projects, ProjectDetail
@@ -96,7 +95,6 @@ crm-project/
     │   # departmentRoutes, manpowerRoutes, projectRoutes
     │   # reimbursementRoutes, notificationRoutes
     ├── utils/
-    │   ├── mailer.js      # sendVerificationEmail, sendReimbursementNotification
     │   └── notify.js      # createNotification (non-blocking in-app)
     └── server.js
 ```
@@ -118,7 +116,7 @@ cd frontend && npm install -D tailwindcss postcss autoprefixer
 
 # Install backend deps
 cd backend && npm install express mongoose cors dotenv bcryptjs jsonwebtoken nodemon \
-  helmet morgan cookie-parser express-rate-limit express-validator nodemailer
+  helmet morgan cookie-parser express-rate-limit express-validator
 ```
 
 ---
@@ -131,12 +129,6 @@ MONGO_URI=
 JWT_SECRET=
 PORT=5000
 FRONTEND_URL=http://localhost:5173
-SMTP_HOST=
-SMTP_PORT=587
-SMTP_SECURE=false
-SMTP_USER=
-SMTP_PASS=
-SMTP_FROM=
 CLOUDINARY_CLOUD_NAME=
 CLOUDINARY_API_KEY=
 CLOUDINARY_API_SECRET=
@@ -153,10 +145,8 @@ Auth header: `Authorization: Bearer <token>`
 
 | Method | Route | Roles | Notes |
 |---|---|---|---|
-| POST | /auth/register | public | bcrypt round 10, sends verification email |
 | POST | /auth/login | public | returns JWT + user |
 | GET | /auth/me | any | returns current user |
-| GET | /verify-email?token= | public | verifies email token |
 | GET | /users | any | ?role=manager filter supported |
 | GET | /users/:id | head, admin | |
 | PUT | /users/:id/role | head, admin | |
@@ -208,7 +198,7 @@ Auth header: `Authorization: Bearer <token>`
   and editable after via PUT /users/:id/role — see Edit Details on Employees/Team),
   isOverallApprover (Section 8 — exactly one user should have this true; see
   scripts/setOverallApprover.js), createdAt,
-  verificationToken, isVerified, failedLoginAttempts, lockUntil
+  failedLoginAttempts, lockUntil
 }
 ```
 
@@ -281,7 +271,7 @@ Auth header: `Authorization: Bearer <token>`
 
 ### authStore
 - State: `user`, `token`, `isAuthenticated`
-- Actions: `login()`, `register()`, `logout()`, `loadFromStorage()`, `fetchMe()`
+- Actions: `login()`, `logout()`, `loadFromStorage()`, `fetchMe()`
 - Token persisted in localStorage
 
 ### leadStore
@@ -323,6 +313,24 @@ status:  { new: '#3B82F6', contacted: '#F59E0B', proposal: '#8B5CF6', won: '#10B
 ```
 
 Dark sidebar, light content area. Dense, professional — no generic AI aesthetic.
+
+---
+
+## FIS module (separate, access-isolated)
+
+Case tracker, QC checklists, dashboards for the FIS department. Sales/BGV and every other role must never see or reach it.
+
+- **Access model:** `User.fisRole` = `null | 'fis_admin' | 'fis_member'`. Independent of `role` (don't add fis roles to the role enum or role arrays). All `/api/fis/*` authorization goes through `requireFisRole(...)` in `middleware/fisAuth.js`; the router is gated first, so unknown `/api/fis/*` paths also 403. `protect` strips `fisRole` from JSON for callers without one.
+- **Rules:** fis_admin: everything. fis_member: create a case; view/edit cases where they are lead/support1/support2, but edit only `stage` and `remarks` (other fields admin-only after creation); creators can view (read-only) cases they created. QC: writes fis_admin only; lead/support can view; everyone else 403.
+- **Routes** (`routes/fisRoutes.js`): `/api/fis/config`, `/people`, `/cases` (+ `/:id`), `/dashboard`, `/report` (admin), `/cases/:id/qc` (+ `/subjects`, `/items/:key`, `/send-back`, `/pass`, `/reopen`), `/qc-template` (+ `/items`, `/sections`, `/case-types`, admin). `?asOf=YYYY-MM-DD` pins "today" for admins and is ignored in production.
+- **Models:** FisCase, FisCaseHistory, FisConfig (thresholds, phases, case types, stage to phase map), FisQcTemplate (immutable, versioned), FisQcRun (pinned template version, rounds, subjects).
+- **Frontend:** pages `/fis`, `/fis/cases/:id` (Details + QC tabs), `/fis/dashboard`, `/fis/report`, `/fis/settings`, `/fis/qc-settings`; guarded by `FisRoute` (keys off `user.fisRole`).
+- **Scripts** (all use `scripts/_dbGuard.js`: prints the DB name, refuses the production DB `test` unless allowed):
+  - `seedFis.js`: dev only, no `--prod` option. Creates FIS dev users (`@fis-dev.example.com`) + sample cases.
+  - `seedFisQc.js`: seeds QC template v1 from `backend/seed/fis_qc_checklist_seed.json`; the production DB needs `--prod` and a typed "yes".
+  - `set-fis-roles.js`: sets only `fisRole` on existing users by email; needs `--prod --map file.json`, prints every change, asks for "yes".
+- **Startup guard:** the server prints DB name and `NODE_ENV`, and exits if `NODE_ENV=development` and the DB is `test`.
+- **Tests:** `cd backend && npm test` (jest + supertest + mongodb-memory-server, all in-memory).
 
 ---
 
