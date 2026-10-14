@@ -24,6 +24,7 @@ import FisCaseDetail from './pages/FisCaseDetail'
 import FisDashboard from './pages/FisDashboard'
 import FisReport from './pages/FisReport'
 import FisSettings from './pages/FisSettings'
+import FisQcSettings from './pages/FisQcSettings'
 
 const FH_ADMIN           = ['head', 'admin', 'ca']
 const FH_ADMIN_MGR       = ['head', 'admin', 'manager', 'ca']
@@ -139,6 +140,7 @@ export default function App() {
         <Route path="/fis/dashboard" element={<FisRoute admin><FisDashboard /></FisRoute>} />
         <Route path="/fis/report" element={<FisRoute admin><FisReport /></FisRoute>} />
         <Route path="/fis/settings" element={<FisRoute admin><FisSettings /></FisRoute>} />
+        <Route path="/fis/qc-settings" element={<FisRoute admin><FisQcSettings /></FisRoute>} />
 
         <Route path="/"  element={<Navigate to={getHomeRoute(user?.role)} replace />} />
         <Route path="*"  element={<Navigate to={getHomeRoute(user?.role)} replace />} />

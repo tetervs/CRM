@@ -10,6 +10,11 @@ import api from '../api/index'
 import { fmtDate, DEADLINE_STYLE, ROW_STYLE, isFisAdmin } from '../utils/fis'
 
 const selectClass = 'px-3 py-1.5 text-sm rounded-md border border-surface-border bg-white focus:outline-none focus:border-brand-primary'
+const QC_STYLE = {
+  'Not started': 'bg-slate-100 text-slate-500',
+  'In progress': 'bg-blue-100 text-blue-700',
+  'Passed': 'bg-emerald-100 text-emerald-700',
+}
 const th = 'px-3 py-2 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap'
 const td = 'px-3 py-2 text-sm whitespace-nowrap'
 
@@ -102,7 +107,7 @@ export default function FisTracker() {
           <thead className="bg-slate-50 border-b border-surface-border">
             <tr>
               {['Sl. No.', 'Case Ref', 'Case type', 'Lead', 'Support 1', 'Support 2', 'Assigned by', 'Date assigned', 'Deadline',
-                'Stage', 'Phase', 'Step', 'Deadline status', 'Last updated', 'Days since update', 'Remarks'].map((h) => <th key={h} className={th}>{h}</th>)}
+                'Stage', 'Phase', 'Step', 'Deadline status', 'Last updated', 'Days since update', 'QC', 'Remarks'].map((h) => <th key={h} className={th}>{h}</th>)}
             </tr>
           </thead>
           <tbody className="divide-y divide-surface-border">
@@ -136,11 +141,14 @@ export default function FisTracker() {
                 </td>
                 <td className={td}>{fmtDate(c.stageChangedAt)}</td>
                 <td className={`${td} ${c.stale ? 'bg-amber-200 text-amber-900 font-semibold' : ''}`}>{c.daysSinceStage}</td>
+                <td className={td}>
+                  {c.qcStatus && <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${QC_STYLE[c.qcStatus] || 'bg-indigo-50 text-brand-primary'}`}>{c.qcStatus}</span>}
+                </td>
                 <td className={`${td} max-w-xs truncate`}>{c.remarks}</td>
               </tr>
             ))}
             {!shown.length && (
-              <tr><td colSpan={16} className="px-3 py-8 text-center text-sm text-slate-400">No cases</td></tr>
+              <tr><td colSpan={17} className="px-3 py-8 text-center text-sm text-slate-400">No cases</td></tr>
             )}
           </tbody>
         </table>

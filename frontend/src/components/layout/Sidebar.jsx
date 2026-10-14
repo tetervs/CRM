@@ -95,6 +95,7 @@ const fisItems = [
   { to: '/fis/dashboard', label: 'FIS dashboard', admin: true },
   { to: '/fis/report', label: 'Review report', admin: true },
   { to: '/fis/settings', label: 'FIS settings', admin: true },
+  { to: '/fis/qc-settings', label: 'QC checklist', admin: true },
 ]
 
 const linkClass = ({ isActive }) =>

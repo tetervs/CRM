@@ -1,0 +1,763 @@
+{
+  "templateVersion": 1,
+  "source": "QC_Checklist_by_Case_Type.docx",
+  "sections": [
+    {
+      "code": "G",
+      "section": 1,
+      "title": "Checks for every report, irrespective of type of case",
+      "intro": "",
+      "groups": [
+        {
+          "name": "Scope and case details",
+          "items": [
+            {
+              "code": "G1",
+              "text": "Every item in the SOW or client brief is covered."
+            },
+            {
+              "code": "G2",
+              "text": "Nothing outside the agreed scope is included, especially sensitive personal matters (family, health, religion, political views) unless the client asked for them in writing."
+            },
+            {
+              "code": "G3",
+              "text": "Any part of the scope that could not be completed is stated, with the reason."
+            },
+            {
+              "code": "G4",
+              "text": "Client name, case reference and report title match across the file name, cover page, headers and body."
+            },
+            {
+              "code": "G5",
+              "text": "Names, aliases, ID numbers (PAN, DIN, CIN, GSTIN), addresses and dates are written the same way everywhere."
+            },
+            {
+              "code": "G6",
+              "text": "The period searched or assessed and the date of the report are stated."
+            }
+          ]
+        },
+        {
+          "name": "Structure",
+          "items": [
+            {
+              "code": "G7",
+              "text": "The latest template is used and every required section is present, in order."
+            },
+            {
+              "code": "G8",
+              "text": "The contents page matches the headings and page numbers."
+            },
+            {
+              "code": "G9",
+              "text": "Findings, tables, figures and annexures are numbered in sequence, with no gaps or repeats."
+            },
+            {
+              "code": "G10",
+              "text": "Headers, footers, page numbers and the confidentiality marking appear on every page."
+            }
+          ]
+        },
+        {
+          "name": "Sources and evidence",
+          "items": [
+            {
+              "code": "G11",
+              "text": "Every finding names its source (database, portal, document, interview or site visit) and the date it was checked."
+            },
+            {
+              "code": "G12",
+              "text": "A nil result names the source and the date, for example \"no records found on eCourts as of 12 Oct 2026\". The subject is never described as \"clean\"."
+            },
+            {
+              "code": "G13",
+              "text": "Every screenshot, photo or document mentioned is attached, readable, and labelled with the same reference used in the text."
+            },
+            {
+              "code": "G14",
+              "text": "Cross-references such as \"see Finding 4\" or \"Annexure B\" point to the right place."
+            }
+          ]
+        },
+        {
+          "name": "Accuracy and analysis",
+          "items": [
+            {
+              "code": "G15",
+              "text": "Each finding says what the evidence shows and no more."
+            },
+            {
+              "code": "G16",
+              "text": "The executive summary matches the findings, with nothing added and nothing significant left out."
+            },
+            {
+              "code": "G17",
+              "text": "Numbers, counts and totals add up, and summary tables match the detail."
+            },
+            {
+              "code": "G18",
+              "text": "Ratings follow the agreed scale, similar findings get similar ratings, and the overall rating fits."
+            },
+            {
+              "code": "G19",
+              "text": "Fact, inference and opinion are kept apart, and allegations are described as allegations."
+            },
+            {
+              "code": "G20",
+              "text": "Each red flag says why it matters to the client."
+            }
+          ]
+        },
+        {
+          "name": "Language and presentation",
+          "items": [
+            {
+              "code": "G21",
+              "text": "American English spelling throughout."
+            },
+            {
+              "code": "G22",
+              "text": "Neutral, factual tone, with no judgmental or emotive words."
+            },
+            {
+              "code": "G23",
+              "text": "Abbreviations are written out at first use, and terms are used consistently."
+            },
+            {
+              "code": "G24",
+              "text": "Grammar, punctuation and spacing are correct."
+            },
+            {
+              "code": "G25",
+              "text": "No internal notes, comments, tracked changes, highlights or placeholder text are left in."
+            },
+            {
+              "code": "G26",
+              "text": "Fonts, headings, tables and images are consistent, and the final PDF is checked page by page."
+            }
+          ]
+        },
+        {
+          "name": "Confidentiality and sign-off",
+          "items": [
+            {
+              "code": "G27",
+              "text": "Personal identifiers appear only where needed, and are masked otherwise (for example, only the last four digits of an Aadhaar number)."
+            },
+            {
+              "code": "G28",
+              "text": "Nothing about a person could be read as defamatory: unproven matters are described as alleged, with their source."
+            },
+            {
+              "code": "G29",
+              "text": "The current disclaimer and the confidentiality statement are included."
+            },
+            {
+              "code": "G30",
+              "text": "File properties are cleaned: author names, comments, hidden sheets and earlier versions removed."
+            },
+            {
+              "code": "G31",
+              "text": "The file follows the naming convention and shows the version number and date."
+            },
+            {
+              "code": "G32",
+              "text": "Every comment from earlier QC rounds is resolved or answered."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "code": "CH",
+      "section": 2,
+      "title": "CHDD/SMDD",
+      "intro": "A CHDD or SMDD report is checked stream by stream, against the checks the client agreed in the SOW.",
+      "groups": [
+        {
+          "name": "Identity and documents",
+          "items": [
+            {
+              "code": "CH1",
+              "text": "The subject's identity is confirmed against documents (name, date of birth, address, PAN) before any other finding is reported."
+            },
+            {
+              "code": "CH2",
+              "text": "Any difference between the name or details the client gave and those in the documents is pointed out, not quietly corrected."
+            },
+            {
+              "code": "CH3",
+              "text": "Documents received from the client or subject are listed, with the date received."
+            }
+          ]
+        },
+        {
+          "name": "Corporate records",
+          "items": [
+            {
+              "code": "CH4",
+              "text": "Directorships and company links show the company name, CIN, DIN, role and appointment and exit dates."
+            },
+            {
+              "code": "CH5",
+              "text": "The status of each linked company (active, struck off, under liquidation) is given, with its source."
+            }
+          ]
+        },
+        {
+          "name": "Litigation and regulatory",
+          "items": [
+            {
+              "code": "CH6",
+              "text": "Litigation searches cover eCourts and the relevant High Courts and tribunals, with the search date."
+            },
+            {
+              "code": "CH7",
+              "text": "Each case found gives the case number, court, parties, the subject's role (petitioner or respondent) and current status."
+            },
+            {
+              "code": "CH8",
+              "text": "Regulatory and defaulter lists in scope are covered (for example SEBI, RBI, Watch Out Investors, CIBIL suit-filed list, NCLT and IBBI), each with a result."
+            },
+            {
+              "code": "CH9",
+              "text": "Sanctions and PEP screening is reported, with the lists checked."
+            }
+          ]
+        },
+        {
+          "name": "Financial",
+          "items": [
+            {
+              "code": "CH10",
+              "text": "Income and asset figures match the source documents, and the documents are named (for example ITR for AY 2025-26)."
+            },
+            {
+              "code": "CH11",
+              "text": "Any gap between declared income and visible assets or lifestyle is explained or flagged, without guessing at the cause."
+            }
+          ]
+        },
+        {
+          "name": "Adverse media and OSINT",
+          "items": [
+            {
+              "code": "CH12",
+              "text": "Adverse media searches include regional language sources and state the search terms used."
+            },
+            {
+              "code": "CH13",
+              "text": "Each media finding gives the publication, date and link, and says whether the subject is confirmed as the person named."
+            },
+            {
+              "code": "CH14",
+              "text": "Social media findings are relevant to the scope, and personal posts are only included where they bear on a finding."
+            }
+          ]
+        },
+        {
+          "name": "Employment, education and discreet calling",
+          "items": [
+            {
+              "code": "CH15",
+              "text": "Each employment and education verification gives the verifier's role, the date and the outcome."
+            },
+            {
+              "code": "CH16",
+              "text": "Discreet calling summaries give each source's role and the date, but never their name."
+            },
+            {
+              "code": "CH17",
+              "text": "Where a source's account conflicts with documents or another source, both are reported."
+            }
+          ]
+        },
+        {
+          "name": "Conclusion",
+          "items": [
+            {
+              "code": "CH18",
+              "text": "The overall risk rating follows from the findings, and every red flag in the summary appears in the body."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "code": "VD",
+      "section": 3,
+      "title": "VDD/TPDD",
+      "intro": "A VDD or TPDD report is about an entity first and its people second, so check that both layers are covered. The CHDD checks CH4 to CH13 also apply to each director or key person screened.",
+      "groups": [
+        {
+          "name": "The entity",
+          "items": [
+            {
+              "code": "VD1",
+              "text": "The entity's legal name, registration number (CIN or LLPIN), date of incorporation and registered address match official records."
+            },
+            {
+              "code": "VD2",
+              "text": "Trade names or brand names are linked to the legal entity, with the source of that link."
+            },
+            {
+              "code": "VD3",
+              "text": "GST registration and filing status are given, with the GSTIN and the date checked."
+            },
+            {
+              "code": "VD4",
+              "text": "Statutory filings with the MCA are up to date, or any overdue filing is noted."
+            },
+            {
+              "code": "VD5",
+              "text": "Financial standing is summarized from filed accounts, with the year and source named."
+            }
+          ]
+        },
+        {
+          "name": "Ownership and people",
+          "items": [
+            {
+              "code": "VD6",
+              "text": "Shareholding and beneficial owners are identified as far as public records allow, and any gap is stated."
+            },
+            {
+              "code": "VD7",
+              "text": "Current and past directors are listed, with appointment and exit dates."
+            },
+            {
+              "code": "VD8",
+              "text": "Related and group companies are identified, with how they are linked."
+            }
+          ]
+        },
+        {
+          "name": "Risk screening",
+          "items": [
+            {
+              "code": "VD9",
+              "text": "Litigation, regulatory, sanctions and adverse media checks are run on the entity as well as its directors."
+            },
+            {
+              "code": "VD10",
+              "text": "Any link to government officials or politically exposed persons is reported, as relevant to anti-bribery risk."
+            },
+            {
+              "code": "VD11",
+              "text": "A site or address verification, if in scope, gives the date, what was seen, and photos."
+            }
+          ]
+        },
+        {
+          "name": "Conclusion",
+          "items": [
+            {
+              "code": "VD12",
+              "text": "The report says plainly whether anything found affects the client's decision to engage the vendor, and why."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "code": "CI",
+      "section": 4,
+      "title": "Corporate investigations",
+      "intro": "A corporate investigation report has to hold up if the client acts on it, so the link between each allegation and its evidence matters most. The CHDD checks also apply to any individual or company the investigation screens.",
+      "groups": [
+        {
+          "name": "The allegations",
+          "items": [
+            {
+              "code": "CI1",
+              "text": "Each allegation or question from the client is stated at the start, in neutral words."
+            },
+            {
+              "code": "CI2",
+              "text": "Each allegation is answered in the findings: supported, not supported, or could not be determined, with the reason."
+            },
+            {
+              "code": "CI3",
+              "text": "Findings are kept to what the evidence shows about the allegation, without wider conclusions about guilt or intent."
+            }
+          ]
+        },
+        {
+          "name": "Chronology and evidence",
+          "items": [
+            {
+              "code": "CI4",
+              "text": "A chronology of events is given, with dates and a source for each entry."
+            },
+            {
+              "code": "CI5",
+              "text": "Each piece of evidence is listed with where it came from, when it was obtained, and who obtained it (by role)."
+            },
+            {
+              "code": "CI6",
+              "text": "Documents relied on are attached or referenced as annexures, and copies are legible."
+            },
+            {
+              "code": "CI7",
+              "text": "Nothing describes evidence obtained unlawfully, through pretexting, or by accessing private accounts or devices."
+            }
+          ]
+        },
+        {
+          "name": "Fieldwork and interviews",
+          "items": [
+            {
+              "code": "CI8",
+              "text": "Fieldwork notes give the date, time, place and what was observed, separate from what the investigator concluded."
+            },
+            {
+              "code": "CI9",
+              "text": "Interview summaries give the interviewee's role, the date, and whether the account was confirmed by anything else."
+            },
+            {
+              "code": "CI10",
+              "text": "Sources who were promised confidentiality cannot be identified from the report."
+            }
+          ]
+        },
+        {
+          "name": "Conclusion",
+          "items": [
+            {
+              "code": "CI11",
+              "text": "Recommendations, if any, follow from the findings and are within what the client asked for."
+            },
+            {
+              "code": "CI12",
+              "text": "Open questions and evidence that could not be obtained are listed."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "code": "DD",
+      "section": 5,
+      "title": "DDD",
+      "intro": "A DDD report deals with someone's private life, so the QC focus is on scope, privacy and tone as much as accuracy.",
+      "groups": [
+        {
+          "name": "Scope and privacy",
+          "items": [
+            {
+              "code": "DD1",
+              "text": "Only the questions the client asked are answered. Personal matters outside them are left out, even if they came up during the work."
+            },
+            {
+              "code": "DD2",
+              "text": "The subject's identity is confirmed before anything about them is reported, so nothing is attributed to the wrong person."
+            },
+            {
+              "code": "DD3",
+              "text": "Details of third parties (family members, former partners, neighbours) appear only where a finding needs them."
+            },
+            {
+              "code": "DD4",
+              "text": "Sources and informants cannot be identified from what is written."
+            }
+          ]
+        },
+        {
+          "name": "Background checks",
+          "items": [
+            {
+              "code": "DD5",
+              "text": "Education and employment claims are each marked as verified, not verified, or could not be checked, with the source."
+            },
+            {
+              "code": "DD6",
+              "text": "Family background, residence and any previous marriage are reported only if in scope, each with its source."
+            },
+            {
+              "code": "DD7",
+              "text": "Litigation, police and matrimonial dispute searches give the courts or records checked and the date."
+            },
+            {
+              "code": "DD8",
+              "text": "Social media findings are relevant to the questions asked and are captured with the date seen."
+            }
+          ]
+        },
+        {
+          "name": "Fieldwork",
+          "items": [
+            {
+              "code": "DD9",
+              "text": "Each fieldwork observation gives the date, time and place, and who observed it (by role)."
+            },
+            {
+              "code": "DD10",
+              "text": "What was seen is kept apart from what the field team concluded from it."
+            },
+            {
+              "code": "DD11",
+              "text": "Photos are dated, relevant, and do not show people who are not part of the finding."
+            }
+          ]
+        },
+        {
+          "name": "Tone",
+          "items": [
+            {
+              "code": "DD12",
+              "text": "The language makes no moral judgement about the subject, their family or their choices."
+            },
+            {
+              "code": "DD13",
+              "text": "Hearsay from neighbours or acquaintances is labelled as such and not presented as fact."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "code": "SR",
+      "section": 6,
+      "title": "SRA/TVRA, including CCTV blind spot analysis",
+      "intro": "An SRA or TVRA report is checked for a consistent risk logic and recommendations the client can act on. The CCTV checks apply when the scope includes a blind spot analysis.",
+      "groups": [
+        {
+          "name": "Site and method",
+          "items": [
+            {
+              "code": "SR1",
+              "text": "Site name, address, visit date, and the people met (by role) are stated."
+            },
+            {
+              "code": "SR2",
+              "text": "The method is stated: how threats, vulnerabilities and risk were assessed, and the rating scale used."
+            },
+            {
+              "code": "SR3",
+              "text": "The checklist parameters used on site are listed, and each one has a result."
+            }
+          ]
+        },
+        {
+          "name": "Findings and ratings",
+          "items": [
+            {
+              "code": "SR4",
+              "text": "Each finding sets out the threat, the vulnerability and the likely impact."
+            },
+            {
+              "code": "SR5",
+              "text": "Each rating matches the risk matrix (likelihood and impact), and similar findings get similar ratings."
+            },
+            {
+              "code": "SR6",
+              "text": "Ratings and timelines agree across the findings, the summary and any charts."
+            },
+            {
+              "code": "SR7",
+              "text": "Each finding has a photo reference, and the photo shows what the finding describes."
+            },
+            {
+              "code": "SR8",
+              "text": "Any standard or guideline cited is named and current."
+            }
+          ]
+        },
+        {
+          "name": "Recommendations",
+          "items": [
+            {
+              "code": "SR9",
+              "text": "Every finding that needs action has a recommendation that says what to do, where, and by when."
+            },
+            {
+              "code": "SR10",
+              "text": "Timelines match the rating, and immediate and long-term actions do not contradict each other."
+            },
+            {
+              "code": "SR11",
+              "text": "Recommendations are realistic for the site and do not repeat across findings without a reason."
+            }
+          ]
+        },
+        {
+          "name": "CCTV blind spot analysis",
+          "items": [
+            {
+              "code": "SR12",
+              "text": "Each camera recommendation gives the camera type, resolution, position and what it must show."
+            },
+            {
+              "code": "SR13",
+              "text": "Finding codes come from the finding library, and the area names are spelt exactly as in the template."
+            },
+            {
+              "code": "SR14",
+              "text": "Camera, finding and area counts match between the findings, the summary and the inventory sheets."
+            },
+            {
+              "code": "SR15",
+              "text": "Cameras recommended for release or re-use are accounted for where they are re-used."
+            },
+            {
+              "code": "SR16",
+              "text": "Contradictions between the camera inventory and what was seen on site are raised with the author."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "code": "SP",
+      "section": 7,
+      "title": "SOPs",
+      "intro": "An SOP is checked for whether someone at the client could follow it without help. Run these on Draft 1 and again on Draft 2.",
+      "groups": [
+        {
+          "name": "Content",
+          "items": [
+            {
+              "code": "SP1",
+              "text": "Purpose, scope and who the SOP applies to are stated."
+            },
+            {
+              "code": "SP2",
+              "text": "It covers what the client asked for in the briefing."
+            },
+            {
+              "code": "SP3",
+              "text": "Roles and responsibilities are named, and each one matches the steps that role carries out."
+            },
+            {
+              "code": "SP4",
+              "text": "Steps are in order, and each one is an action someone can carry out."
+            },
+            {
+              "code": "SP5",
+              "text": "Decision points say what to do in each case, and who decides."
+            },
+            {
+              "code": "SP6",
+              "text": "Escalation contacts and timeframes are given where the SOP needs them (for example in an emergency response SOP)."
+            }
+          ]
+        },
+        {
+          "name": "Fit with the client",
+          "items": [
+            {
+              "code": "SP7",
+              "text": "It fits the client's existing policies and site, and any conflict is flagged."
+            },
+            {
+              "code": "SP8",
+              "text": "Laws, regulations and standards cited are named correctly and current."
+            },
+            {
+              "code": "SP9",
+              "text": "Terms match the client's own (job titles, site names, system names)."
+            }
+          ]
+        },
+        {
+          "name": "Document control",
+          "items": [
+            {
+              "code": "SP10",
+              "text": "Version, owner, approver, effective date and review date are filled in."
+            },
+            {
+              "code": "SP11",
+              "text": "Forms, annexures and other SOPs it mentions exist and are named correctly."
+            },
+            {
+              "code": "SP12",
+              "text": "Feedback from the previous review round has been addressed in this draft."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "code": "DQ",
+      "section": 8,
+      "title": "Direct QC jobs and EP",
+      "intro": "Direct QC jobs (one-off reviews from Niharika or Praveen) use Section 1, plus the section for whatever kind of report it is. If the request asks for a narrower check, such as language only, note that on the report so nobody assumes a full QC was done.",
+      "groups": [
+        {
+          "name": "General",
+          "items": [
+            {
+              "code": "DQ1",
+              "text": "What was asked for is written down before starting (full QC, or a named part)."
+            },
+            {
+              "code": "DQ2",
+              "text": "The reply says which checks were run and which were not."
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "rules": {
+    "always": [
+      "G"
+    ],
+    "byCaseType": {
+      "CHDD/SMDD": [
+        "CH"
+      ],
+      "VDD/TPDD": [
+        "VD"
+      ],
+      "Corporate investigation": [
+        "CI"
+      ],
+      "DDD": [
+        "DD"
+      ],
+      "SRA/TVRA": [
+        "SR"
+      ],
+      "SOPs": [
+        "SP"
+      ],
+      "QC (direct)": [
+        "DQ"
+      ],
+      "EP": []
+    },
+    "perSubject": {
+      "VDD/TPDD": {
+        "prefix": "CH",
+        "from": 4,
+        "to": 13,
+        "subjectLabel": "Director / key person"
+      },
+      "Corporate investigation": {
+        "prefix": "CH",
+        "from": 1,
+        "to": 17,
+        "subjectLabel": "Individual or company screened"
+      }
+    },
+    "directQc": "QC (direct) = G + DQ + the section for the underlying report type (reviewer picks it); scope full/partial recorded",
+    "srCctvItems": "SR12-SR16 apply only when the case scope includes CCTV blind spot analysis (toggle)",
+    "recheckAfterRevision": [
+      "G8",
+      "G9",
+      "G14"
+    ],
+    "roundsNote": "SOPs: run on Draft 1 and again on Draft 2",
+    "signOff": "Every applicable item Pass or N/A and every Issue closed",
+    "conditional": {
+      "SR": {
+        "toggle": "cctv",
+        "from": 12,
+        "to": 16,
+        "label": "Includes CCTV blind spot analysis"
+      }
+    }
+  }
+}

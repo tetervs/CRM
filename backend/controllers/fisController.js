@@ -3,6 +3,8 @@ const User = require('../models/User')
 const FisConfig = require('../models/FisConfig')
 const FisCase = require('../models/FisCase')
 const FisCaseHistory = require('../models/FisCaseHistory')
+const FisQcRun = require('../models/FisQcRun')
+const { qcStatus } = require('../utils/fisQc')
 const defaults = require('../utils/fisDefaults')
 const { day, diffDays, istDate, derive } = require('../utils/fisDerive')
 
@@ -136,7 +138,13 @@ exports.listCases = async (req, res, next) => {
       ? {}
       : { $or: ['caseLead', 'support1', 'support2', 'createdBy'].map((k) => ({ [k]: req.user._id })) }
     const cases = await FisCase.find(q).sort('serialNo').populate(POPULATE)
-    res.json(cases.map((c) => present(c, cfg, now, req)))
+    const runs = await FisQcRun.find({ case: { $in: cases.map((c) => c._id) } }).select('case status rounds.n')
+    const byCase = Object.fromEntries(runs.map((r) => [String(r.case), r]))
+    res.json(cases.map((c) => {
+      const p = present(c, cfg, now, req)
+      // QC is viewable only by admins and people on the case; creator-only rows get no QC status.
+      return { ...p, qcStatus: p.canEdit ? qcStatus(byCase[String(c._id)]) : null }
+    }))
   } catch (e) { next(e) }
 }
 

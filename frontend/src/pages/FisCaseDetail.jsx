@@ -3,6 +3,7 @@ import { Link, useParams } from 'react-router-dom'
 import { PageWrapper } from '../components/layout/PageWrapper'
 import { Card } from '../components/ui/Card'
 import { FisCaseForm } from '../components/shared/FisCaseForm'
+import { FisQcPanel } from '../components/shared/FisQcPanel'
 import useFisStore from '../store/fisStore'
 import api from '../api/index'
 import useAuthStore from '../store/authStore'
@@ -23,6 +24,7 @@ export default function FisCaseDetail() {
   const [formError, setFormError] = useState('')
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
+  const [tab, setTab] = useState('details')
 
   const load = useCallback(
     () => api.get(`/fis/cases/${id}`).then((r) => setC(r.data)).catch((e) => setError(e.response?.status === 403 ? 'You are not on this case.' : 'Case not found')),
@@ -63,7 +65,26 @@ export default function FisCaseDetail() {
         </div>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+      {c.canEdit && (
+        <div className="flex gap-1 mb-4 border-b border-surface-border">
+          {[['details', 'Details'], ['qc', 'QC']].map(([k, label]) => (
+            <button key={k} onClick={() => setTab(k)}
+              className={`px-4 py-2 text-sm font-medium -mb-px border-b-2 ${tab === k ? 'border-brand-primary text-brand-primary' : 'border-transparent text-slate-500 hover:text-slate-700'}`}>
+              {label}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {tab === 'qc' && c.canEdit && (
+        <Card title="QC checklist">
+          <FisQcPanel caseData={c} isAdmin={isFisAdmin(user)}
+            stages={config.caseTypes.find((t) => t.code === c.caseType)?.stages || []}
+            onMoveStage={async (stage) => { await api.put(`/fis/cases/${id}`, { stage }); await load() }} />
+        </Card>
+      )}
+
+      <div className={`grid grid-cols-1 lg:grid-cols-3 gap-5 ${tab === 'qc' && c.canEdit ? 'hidden' : ''}`}>
         <Card title="Details" className="lg:col-span-2">
           <FisCaseForm key={c.updatedAt} initial={c} config={config} people={people} onSubmit={save} mode={!c.canEdit ? 'view' : isFisAdmin(user) ? 'full' : 'member'} submitLabel="Save changes" error={formError} saving={saving} />
           {!c.canEdit && <p className="mt-2 text-xs text-slate-500">View only &mdash; you created this case but are not lead or support on it.</p>}
