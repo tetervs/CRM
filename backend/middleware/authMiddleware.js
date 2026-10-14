@@ -15,6 +15,10 @@ const protect = async (req, res, next) => {
       return res.status(401).json({ message: 'Not authorized — user inactive or not found' })
     }
     req.user = user
+    // fisRole is only visible to FIS users: strip it from every JSON response for everyone else.
+    if (!user.fisRole) {
+      res.json = (body) => res.type('json').send(JSON.stringify(body, (k, v) => (k === 'fisRole' ? undefined : v)))
+    }
     next()
   } catch {
     return res.status(401).json({ message: 'Not authorized — invalid token' })

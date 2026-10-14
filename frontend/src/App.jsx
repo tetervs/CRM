@@ -19,6 +19,11 @@ import ProjectDetail from './pages/ProjectDetail'
 import Reimbursements from './pages/Reimbursements'
 import NewReimbursement from './pages/NewReimbursement'
 import ReimbursementDetail from './pages/ReimbursementDetail'
+import FisTracker from './pages/FisTracker'
+import FisCaseDetail from './pages/FisCaseDetail'
+import FisDashboard from './pages/FisDashboard'
+import FisReport from './pages/FisReport'
+import FisSettings from './pages/FisSettings'
 
 const FH_ADMIN           = ['head', 'admin', 'ca']
 const FH_ADMIN_MGR       = ['head', 'admin', 'manager', 'ca']
@@ -34,6 +39,16 @@ function ProtectedRoute({ children, roles }) {
   if (!isAuthenticated) return <Navigate to="/login" replace />
   if (user?.mustChangePassword) return <Navigate to="/change-password" replace />
   if (roles && !roles.includes(user?.role)) return <Navigate to={getHomeRoute(user?.role)} replace />
+  return children
+}
+
+// FIS pages key off user.fisRole only (never user.role). Backend enforces the same.
+function FisRoute({ children, admin = false }) {
+  const { isAuthenticated, initialized, user } = useAuthStore()
+  if (!initialized) return null
+  if (!isAuthenticated) return <Navigate to="/login" replace />
+  const allowed = admin ? user?.fisRole === 'fis_admin' : !!user?.fisRole
+  if (!allowed) return <Navigate to={getHomeRoute(user?.role)} replace />
   return children
 }
 
@@ -118,6 +133,12 @@ export default function App() {
         <Route path="/departments" element={
           <ProtectedRoute roles={FH_ADMIN}><Departments /></ProtectedRoute>
         } />
+
+        <Route path="/fis" element={<FisRoute><FisTracker /></FisRoute>} />
+        <Route path="/fis/cases/:id" element={<FisRoute><FisCaseDetail /></FisRoute>} />
+        <Route path="/fis/dashboard" element={<FisRoute admin><FisDashboard /></FisRoute>} />
+        <Route path="/fis/report" element={<FisRoute admin><FisReport /></FisRoute>} />
+        <Route path="/fis/settings" element={<FisRoute admin><FisSettings /></FisRoute>} />
 
         <Route path="/"  element={<Navigate to={getHomeRoute(user?.role)} replace />} />
         <Route path="*"  element={<Navigate to={getHomeRoute(user?.role)} replace />} />

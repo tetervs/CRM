@@ -14,6 +14,8 @@ const userSchema = new mongoose.Schema({
   // A flag rather than a role check — head is not unique (there are currently two
   // head-role users), so this has to be an explicit, DB-driven marker, not inferred.
   isOverallApprover: { type: Boolean, default: false },
+  // FIS module access. Orthogonal to `role`; all /api/fis/* authorization keys off this only.
+  fisRole: { type: String, enum: [null, 'fis_admin', 'fis_member'], default: null },
   designation: { type: String, trim: true, maxlength: 100, default: '' },
   mustChangePassword: { type: Boolean, default: false },
   isActive: { type: Boolean, default: true },

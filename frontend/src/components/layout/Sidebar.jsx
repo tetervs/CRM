@@ -90,6 +90,13 @@ const navItems = [
   },
 ]
 
+const fisItems = [
+  { to: '/fis', label: 'Cases', end: true },
+  { to: '/fis/dashboard', label: 'FIS dashboard', admin: true },
+  { to: '/fis/report', label: 'Review report', admin: true },
+  { to: '/fis/settings', label: 'FIS settings', admin: true },
+]
+
 const linkClass = ({ isActive }) =>
   `flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors duration-100 ${
     isActive
@@ -132,6 +139,20 @@ export function Sidebar() {
             {label}
           </NavLink>
         ))}
+
+        {user?.fisRole && (
+          <>
+            <div className="pt-4 pb-1 px-3">
+              <p className="text-xs font-semibold uppercase tracking-wider text-sidebar-text/50">FIS</p>
+            </div>
+            {fisItems.filter((i) => !i.admin || user.fisRole === 'fis_admin').map(({ to, label, end }) => (
+              <NavLink key={to} to={to} end={end} className={linkClass}>
+                <span className="w-4 h-4 shrink-0" />
+                {label === 'Cases' ? (user.fisRole === 'fis_admin' ? 'All cases' : 'My cases') : label}
+              </NavLink>
+            ))}
+          </>
+        )}
 
         {canSettings && (
           <>

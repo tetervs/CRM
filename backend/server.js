@@ -12,7 +12,7 @@ const { generalLimiter } = require('./middleware/rateLimiter')
 const app = express()
 
 // Connect DB then seed defaults
-connectDB().then(() => seedDepartments())
+if (require.main === module) connectDB().then(() => seedDepartments())
 
 
 // ── Security headers (Helmet) ────────────────────────────────────────────────
@@ -57,6 +57,7 @@ app.use('/api/notifications',  require('./routes/notificationRoutes'))
 app.use('/api/milestones',     require('./routes/milestoneRoutes'))
 app.use('/api/exports',        require('./routes/exportRoutes'))
 app.use('/api/audit',          require('./routes/auditRoutes'))
+app.use('/api/fis',            require('./routes/fisRoutes'))
 
 // ── Health check ─────────────────────────────────────────────────────────────
 app.get('/api/health', (_req, res) => res.json({ status: 'ok' }))
@@ -77,7 +78,7 @@ app.use((err, _req, res, _next) => {
 })
 
 const PORT = process.env.PORT || 5000
-app.listen(PORT, () => {
+if (require.main === module) app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`)
 
   if (process.env.RENDER_EXTERNAL_URL) {
@@ -91,3 +92,5 @@ app.listen(PORT, () => {
     }, 14 * 60 * 1000)
   }
 })
+
+module.exports = app

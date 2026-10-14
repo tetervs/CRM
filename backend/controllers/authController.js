@@ -35,7 +35,9 @@ const login = async (req, res) => {
     await user.save()
 
     const token = signToken(user._id)
-    res.json({ token, user: user.toJSON() })
+    const out = user.toJSON()
+    if (!out.fisRole) delete out.fisRole
+    res.json({ token, user: out })
 
   } catch (err) {
     res.status(500).json({ message: err.message })
