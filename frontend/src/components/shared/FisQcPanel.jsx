@@ -80,10 +80,8 @@ function groupItems(items) {
 }
 
 const issueListText = (caseRef, run) => {
-  const latest = new Map()
-  run.issueLog.filter((e) => e.open).forEach((e) => latest.set(e.key, e)) // one line per item, newest round wins
-  const lines = [...latest.values()].map((e, i) =>
-    `${i + 1}. ${e.code}${e.subjectLabel ? ` [${e.subjectLabel}]` : ''} - ${e.note} (raised ${e.raisedLabel})`)
+  const lines = run.issueLog.filter((e) => e.open).map((e, i) =>
+    `${i + 1}. ${e.code}${e.subjectLabel ? ` [${e.subjectLabel}]` : ''} - ${e.note} (raised ${e.raisedLabels.join(', ')})`)
   return `QC issues for ${caseRef}\n${lines.join('\n') || 'None open.'}`
 }
 
@@ -303,7 +301,7 @@ export function FisQcPanel({ caseData, isAdmin, stages, onMoveStage }) {
                   <td className="px-3 py-2 font-medium" title={e.text}>{e.code}</td>
                   <td className="px-3 py-2">{e.subjectLabel || '—'}</td>
                   <td className="px-3 py-2">{e.note}</td>
-                  <td className="px-3 py-2 whitespace-nowrap">{e.raisedLabel}</td>
+                  <td className="px-3 py-2 whitespace-nowrap">{e.raisedLabels.join(', ')}{e.reraised > 0 && <span className="ml-1.5 px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 text-xs">raised again</span>}</td>
                   <td className="px-3 py-2 whitespace-nowrap">{e.open ? <span className="text-red-600">Open</span> : e.resolvedLabel}</td>
                 </tr>
               ))}

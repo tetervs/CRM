@@ -98,23 +98,34 @@ function itemIndex(template) {
   return meta
 }
 
+// One row per item (and subject): an issue raised again in a later round stays in the same row.
+// Open until a round after the last time it was raised marks it Pass or N/A.
 function issueLog(run, meta, subjectLabels) {
-  const out = []
+  const byKey = new Map()
   run.rounds.forEach((r, idx) => {
     for (const i of r.items) {
       if (i.status !== 'Issue') continue
-      const later = run.rounds.slice(idx + 1).find((lr) => {
-        const x = lr.items.find((y) => y.key === i.key)
-        return x && (x.status === 'Pass' || x.status === 'N/A')
-      })
-      out.push({
+      const e = byKey.get(i.key) || {
         key: i.key, code: i.code, text: meta[i.code]?.text, subjectLabel: i.subject ? subjectLabels[i.subject] : null,
-        note: i.note, raisedRound: r.n, raisedLabel: r.label,
-        resolvedRound: later?.n ?? null, resolvedLabel: later?.label ?? null, open: !later,
-      })
+        raisedRounds: [], raisedLabels: [],
+      }
+      e.raisedRounds.push(r.n)
+      e.raisedLabels.push(r.label)
+      e.note = i.note // latest note
+      e.lastIdx = idx
+      byKey.set(i.key, e)
     }
   })
-  return out
+  return [...byKey.values()].map(({ lastIdx, ...e }) => {
+    const later = run.rounds.slice(lastIdx + 1).find((lr) => {
+      const x = lr.items.find((y) => y.key === e.key)
+      return x && (x.status === 'Pass' || x.status === 'N/A')
+    })
+    return {
+      ...e, raisedRound: e.raisedRounds[0], raisedLabel: e.raisedLabels[0], reraised: e.raisedRounds.length - 1,
+      resolvedRound: later?.n ?? null, resolvedLabel: later?.label ?? null, open: !later,
+    }
+  })
 }
 
 function qcStatus(run) {

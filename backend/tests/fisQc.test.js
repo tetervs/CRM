@@ -393,6 +393,73 @@ describe('access', () => {
   })
 })
 
+describe('issue log grouping', () => {
+  test('an issue raised again in later rounds stays in ONE row', async () => {
+    const id = await makeCase('EP')
+    await startQc(id)
+    const send = () => api('post', `/api/fis/cases/${id}/qc/send-back`, 'brishti')
+    await setItem(id, 'G12', { status: 'Issue', note: 'page 6, case 2' })
+    await send()
+    await setItem(id, 'G12', { status: 'Issue', note: 'page 6 still wrong, case 2' }) // raised again
+    await send()
+    let log = (await getRun(id)).issueLog.filter((e) => e.code === 'G12')
+    expect(log).toHaveLength(1)
+    expect(log[0]).toMatchObject({ raisedRounds: [1, 2], reraised: 1, open: true, resolvedRound: null, note: 'page 6 still wrong, case 2' })
+    await setItem(id, 'G12', { status: 'Pass' })
+    log = (await getRun(id)).issueLog.filter((e) => e.code === 'G12')
+    expect(log).toHaveLength(1)
+    expect(log[0]).toMatchObject({ raisedRound: 1, raisedRounds: [1, 2], resolvedRound: 3, open: false })
+  })
+
+  test('different subjects of the same check are separate rows', async () => {
+    const id = await makeCase('VDD/TPDD')
+    await startQc(id)
+    const a = (await api('post', `/api/fis/cases/${id}/qc/subjects`, 'brishti', { label: 'D1' })).body.run.subjects[0].id
+    const b = (await api('post', `/api/fis/cases/${id}/qc/subjects`, 'brishti', { label: 'D2' })).body.run.subjects[1].id
+    await setItem(id, `CH6@${a}`, { status: 'Issue', note: 'x' })
+    await setItem(id, `CH6@${b}`, { status: 'Issue', note: 'y' })
+    expect((await getRun(id)).issueLog.filter((e) => e.code === 'CH6')).toHaveLength(2)
+  })
+})
+
+describe('seedFisQc guard', () => {
+  const run = (uri, args, input) => spawnSync('node', [path.join(ROOT, 'scripts', 'seedFisQc.js'), ...args],
+    { env: { ...process.env, MONGO_URI: uri, NODE_ENV: 'development' }, encoding: 'utf8', input })
+  const count = async (uri) => {
+    const conn = await mongoose.createConnection(uri).asPromise()
+    const n = await conn.db.collection('fisqctemplates').countDocuments()
+    await conn.close()
+    return n
+  }
+  let prodMem, prodUri
+  beforeAll(async () => { prodMem = await MongoMemoryServer.create(); prodUri = prodMem.getUri('test') })
+  afterAll(async () => { await prodMem.stop() })
+
+  test('refuses the production DB without --prod', async () => {
+    const r = run(prodUri, [])
+    expect(r.status).toBe(1)
+    expect(r.stdout).toContain('DB: test')
+    expect(r.stderr).toContain('without --prod')
+    expect(await count(prodUri)).toBe(0)
+  })
+
+  test('--prod asks for confirmation; anything but "yes" aborts without writing', async () => {
+    const r = run(prodUri, ['--prod'], 'no\n')
+    expect(r.stdout).toContain('Type "yes"')
+    expect(r.stdout).toContain('Aborted')
+    expect(await count(prodUri)).toBe(0)
+  })
+
+  test('--prod + "yes" seeds once; running again changes nothing', async () => {
+    const r = run(prodUri, ['--prod'], 'yes\n')
+    expect(r.status).toBe(0)
+    expect(r.stdout).toContain('Seeded QC template v1: 8 sections, 117 items')
+    expect(await count(prodUri)).toBe(1)
+    expect(run(prodUri, ['--prod'], 'yes\n').stdout).toContain('nothing to do')
+    expect(await count(prodUri)).toBe(1)
+  })
+})
+
 describe('template versioning (runs last: it changes the template)', () => {
   test('editing the template does not change an existing run', async () => {
     const id = await makeCase('EP')
