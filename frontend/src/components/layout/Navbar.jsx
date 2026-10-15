@@ -47,7 +47,7 @@ export function Navbar() {
   const title = pageTitles[pathname] ||
     (pathname.startsWith('/leads/')          ? 'Lead Detail' :
      pathname.startsWith('/projects/')       ? 'Project Detail' :
-     pathname.startsWith('/reimbursements/') ? 'Reimbursement' : 'SalesPilot')
+     pathname.startsWith('/reimbursements/') ? 'Reimbursement' : 'IQpilot')
 
   useEffect(() => {
     const handle = (e) => {

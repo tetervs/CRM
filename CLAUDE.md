@@ -13,7 +13,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project
 
-SalesPilot — Monday CRM-like Sales Management Tool. MERN stack.
+IQpilot — Monday CRM-like Sales Management Tool. MERN stack.
 
 ---
 
