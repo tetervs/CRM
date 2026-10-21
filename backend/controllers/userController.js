@@ -1,5 +1,7 @@
 const User = require('../models/User')
+const crypto = require('crypto')
 const Department = require('../models/Department')
+const UserAuditLog = require('../models/UserAuditLog')
 
 const CREATABLE_ROLES   = ['employee', 'sales', 'manager', 'admin']
 const MANAGER_REQUIRED   = ['employee', 'sales', 'manager']
@@ -59,6 +61,7 @@ const getManagers = async (req, res) => {
 
 const getUser = async (req, res) => {
   try {
+    res.locals.keepFisRole = true // head/admin-only route; the edit modal needs it to prefill "FIS access"
     const user = await User.findById(req.params.id)
       .select('-password')
       .populate('department', 'name code')
@@ -180,15 +183,112 @@ const updateRole = async (req, res) => {
   }
 }
 
-const deleteUser = async (req, res) => {
+const MANAGER_NEEDED_ON_PROMOTE = MANAGER_REQUIRED
+const EDITABLE = ['name', 'email', 'role', 'department', 'isActive', 'fisRole']
+
+// ALLOWED_EMAIL_DOMAINS (comma-separated) — enforced only when set.
+const emailDomainAllowed = (email) => {
+  const list = (process.env.ALLOWED_EMAIL_DOMAINS || '').split(',').map((d) => d.trim().toLowerCase()).filter(Boolean)
+  return !list.length || list.includes(email.split('@')[1])
+}
+
+// Only a head may touch a head account or hand out the head role — otherwise an
+// admin could reset a head's password and take the account over.
+const headGuard = (actor, target, newRole) =>
+  actor.role !== 'head' && (target.role === 'head' || newRole === 'head')
+
+const updateUser = async (req, res) => {
   try {
-    // Soft delete — deactivate instead of removing
-    const user = await User.findByIdAndUpdate(req.params.id, { isActive: false }, { new: true }).select('-password')
-    if (!user) return res.status(404).json({ message: 'User not found' })
-    res.json({ message: 'User deactivated', user })
+    const target = await User.findById(req.params.id)
+    if (!target) return res.status(404).json({ message: 'User not found' })
+
+    // Normalise, then keep only fields that actually change.
+    const body = { ...req.body }
+    if (typeof body.email === 'string') body.email = body.email.toLowerCase().trim()
+    if (typeof body.name === 'string') body.name = body.name.trim()
+    if ('fisRole' in body && !body.fisRole) body.fisRole = null
+    const changes = {}
+    for (const f of EDITABLE) {
+      if (!(f in body)) continue
+      const cur = f === 'department' ? (target.department ? String(target.department) : null) : target[f]
+      if ((body[f] ?? null) !== (cur ?? null)) changes[f] = body[f]
+    }
+
+    if (headGuard(req.user, target, changes.role)) {
+      return res.status(403).json({ message: 'Only a head can modify head accounts or assign the head role' })
+    }
+
+    const isSelf = String(target._id) === String(req.user._id)
+    if (isSelf && ['role', 'isActive', 'fisRole'].some((f) => f in changes)) {
+      return res.status(400).json({ message: 'You cannot change your own role, status or FIS access' })
+    }
+
+    if ('email' in changes) {
+      if (!emailDomainAllowed(changes.email)) {
+        return res.status(400).json({ message: 'Email domain is not allowed' })
+      }
+      if (await User.exists({ email: changes.email, _id: { $ne: target._id } })) {
+        return res.status(400).json({ message: 'Email already registered' })
+      }
+    }
+    if (changes.department && !(await Department.findById(changes.department))) {
+      return res.status(400).json({ message: 'Department not found' })
+    }
+    if (changes.role && MANAGER_NEEDED_ON_PROMOTE.includes(changes.role) && !target.manager) {
+      return res.status(400).json({ message: `Assign a manager (Reports To) before making this user a ${changes.role}` })
+    }
+    const leavingHead = target.role === 'head' && target.isActive &&
+      ((changes.role && changes.role !== 'head') || changes.isActive === false)
+    if (leavingHead && !(await User.exists({ role: 'head', isActive: true, _id: { $ne: target._id } }))) {
+      return res.status(400).json({ message: 'Cannot demote or deactivate the last remaining head' })
+    }
+
+    const fields = Object.keys(changes)
+    if (fields.length) {
+      const before = Object.fromEntries(fields.map((f) => [f, target[f]]))
+      target.set(changes)
+      await target.save()
+      await UserAuditLog.insertMany(fields.map((f) => ({
+        actor: req.user._id, target: target._id, field: f, oldValue: before[f] ?? null, newValue: changes[f] ?? null,
+      })))
+    }
+
+    res.locals.keepFisRole = true
+    const user = await User.findById(target._id)
+      .select('-password')
+      .populate('department', 'name code')
+      .populate('manager', 'name email role')
+    res.json(user)
   } catch (err) {
     res.status(500).json({ message: err.message })
   }
 }
 
-module.exports = { getUsers, getManagers, getUser, createUser, updateRole, deleteUser }
+// No hard delete — deactivate goes through the same guarded path as the edit modal.
+const deleteUser = (req, res) => {
+  req.body = { isActive: false }
+  return updateUser(req, res)
+}
+
+// Temp password is returned once; only a hash is stored and the log never holds it.
+const resetPassword = async (req, res) => {
+  try {
+    const target = await User.findById(req.params.id)
+    if (!target) return res.status(404).json({ message: 'User not found' })
+    if (headGuard(req.user, target)) {
+      return res.status(403).json({ message: 'Only a head can reset a head account' })
+    }
+    const tempPassword = crypto.randomBytes(9).toString('base64url')
+    target.password = tempPassword
+    target.mustChangePassword = true
+    target.failedLoginAttempts = 0
+    target.lockUntil = null
+    await target.save()
+    await UserAuditLog.create({ actor: req.user._id, target: target._id, field: 'password', newValue: 'reset' })
+    res.json({ tempPassword })
+  } catch (err) {
+    res.status(500).json({ message: err.message })
+  }
+}
+
+module.exports = { getUsers, getManagers, getUser, createUser, updateRole, updateUser, deleteUser, resetPassword }

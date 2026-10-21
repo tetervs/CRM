@@ -4,6 +4,7 @@ import { Button } from '../components/ui/Button'
 import { Modal } from '../components/ui/Modal'
 import { UserPerformanceDrawer } from '../components/shared/UserPerformanceDrawer'
 import { AddUserModal } from '../components/shared/AddUserModal'
+import { EditUserModal } from '../components/shared/EditUserModal'
 import useAuthStore from '../store/authStore'
 import useLeadStore from '../store/leadStore'
 import api from '../api/index'
@@ -37,6 +38,8 @@ export default function Team() {
   const [newManagerId, setNewManagerId] = useState('')
   const [managerOptions, setManagerOptions] = useState([])
   const [savingManager, setSavingManager] = useState(false)
+  const [editTarget, setEditTarget] = useState(null)
+  const [showInactive, setShowInactive] = useState(true)
 
   const isAdmin     = user?.role === 'admin'
   const isPrivileged = ['head', 'admin'].includes(user?.role)
@@ -56,9 +59,13 @@ export default function Team() {
     setTeam((t) => t.map((m) => (m._id === id ? { ...m, role } : m)))
   }
 
-  const handleToggleActive = async (id) => {
-    await api.delete(`/users/${id}`)
-    setTeam((t) => t.map((m) => (m._id === id ? { ...m, isActive: !m.isActive } : m)))
+  const handleToggleActive = async (member) => {
+    try {
+      await api.patch(`/users/${member._id}`, { isActive: !member.isActive })
+      setTeam((t) => t.map((m) => (m._id === member._id ? { ...m, isActive: !m.isActive } : m)))
+    } catch (err) {
+      window.alert(err.response?.data?.message || 'Could not update status')
+    }
   }
 
   const openManagerEdit = (member) => {
@@ -89,9 +96,15 @@ export default function Team() {
           <h1 className="text-xl font-bold text-slate-900">Team</h1>
           <p className="text-sm text-slate-500 mt-0.5">{team.filter((m) => m.isActive).length} active team members</p>
         </div>
-        {isPrivileged && (
-          <Button variant="primary" size="md" onClick={() => setShowAdd(true)}>+ Add User</Button>
-        )}
+        <div className="flex items-center gap-4">
+          <label className="flex items-center gap-2 text-sm text-slate-600 cursor-pointer">
+            <input type="checkbox" checked={showInactive} onChange={(e) => setShowInactive(e.target.checked)} />
+            Show deactivated
+          </label>
+          {isPrivileged && (
+            <Button variant="primary" size="md" onClick={() => setShowAdd(true)}>+ Add User</Button>
+          )}
+        </div>
       </div>
 
       <div className="bg-white border border-surface-border rounded-xl shadow-sm overflow-hidden">
@@ -107,7 +120,7 @@ export default function Team() {
           </thead>
           <tbody className="divide-y divide-surface-border">
             {SECTIONS.map(({ role, label }) => {
-              const members = team.filter((m) => m.role === role)
+              const members = team.filter((m) => m.role === role && (showInactive || m.isActive))
               if (members.length === 0) return null
               return (
                 <Fragment key={role}>
@@ -117,7 +130,7 @@ export default function Team() {
                     </td>
                   </tr>
                   {members.map((member) => (
-                    <tr key={member._id} className="hover:bg-surface-bg transition-colors">
+                    <tr key={member._id} className={`hover:bg-surface-bg transition-colors ${member.isActive ? '' : 'opacity-50'}`}>
                       <td className="px-5 py-3.5">
                         <div className="flex items-center gap-3">
                           <div className="w-8 h-8 rounded-full bg-brand-light text-brand-primary text-sm font-bold flex items-center justify-center shrink-0">
@@ -156,6 +169,9 @@ export default function Team() {
                       {isPrivileged && (
                         <td className="px-5 py-3.5">
                           <div className="flex items-center gap-2">
+                            <Button variant="ghost" size="sm" onClick={() => setEditTarget(member)}>
+                              Edit
+                            </Button>
                             <Button variant="ghost" size="sm" onClick={() => setAnalyseUserId(member._id)}>
                               Analyse
                             </Button>
@@ -168,7 +184,7 @@ export default function Team() {
                               <Button
                                 variant={member.isActive ? 'danger' : 'secondary'}
                                 size="sm"
-                                onClick={() => handleToggleActive(member._id)}
+                                onClick={() => handleToggleActive(member)}
                               >
                                 {member.isActive ? 'Deactivate' : 'Reactivate'}
                               </Button>
@@ -218,6 +234,8 @@ export default function Team() {
           </div>
         </div>
       </Modal>
+
+      <EditUserModal user={editTarget} onClose={() => setEditTarget(null)} onSaved={loadTeam} />
 
       <AddUserModal
         isOpen={showAdd}
