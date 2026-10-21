@@ -121,6 +121,19 @@ const statusRules = [
 
 // ─── Users ────────────────────────────────────────────────────────────────────
 
+const updateUserRules = [
+  mongoId(),
+  body('name').optional().trim().notEmpty().withMessage('Name cannot be empty')
+    .isLength({ max: 100 }).withMessage('Name must be at most 100 characters')
+    .matches(/^[\p{L}\p{N} .'-]+$/u).withMessage('Name contains invalid characters'),
+  body('email').optional().trim().isEmail().withMessage('Must be a valid email address')
+    .isLength({ max: 254 }).withMessage('Email is too long'),
+  body('role').optional().isIn(['head', 'ca', 'admin', 'manager', 'sales', 'employee']).withMessage('Invalid role'),
+  body('department').optional().isMongoId().withMessage('Department must be a valid ID'),
+  body('isActive').optional().isBoolean({ strict: true }).withMessage('isActive must be true or false'),
+  body('fisRole').optional({ nullable: true }).isIn(['fis_member', 'fis_admin']).withMessage('Invalid FIS access'),
+]
+
 const createUserRules = [
   body('name')
     .trim()
@@ -266,6 +279,7 @@ module.exports = {
   updateLeadRules,
   statusRules,
   createUserRules,
+  updateUserRules,
   updateRoleRules,
   departmentCreateRules,
   departmentUpdateRules,
