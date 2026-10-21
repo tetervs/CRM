@@ -2,7 +2,7 @@ const jwt = require('jsonwebtoken')
 const User = require('../models/User')
 
 const signToken = (id) =>
-  jwt.sign({ id }, process.env.JWT_SECRET, { expiresIn: '7d' })
+  jwt.sign({ id, t: Date.now() }, process.env.JWT_SECRET, { expiresIn: '7d' })
 
 // ── Login ─────────────────────────────────────────────────────────────────────
 const login = async (req, res) => {
@@ -66,8 +66,10 @@ const changePassword = async (req, res) => {
 
     user.password = newPassword
     user.mustChangePassword = false
+    user.passwordChangedAt = new Date()
     await user.save()
-    res.json({ message: 'Password updated successfully' })
+    // Old tokens (this one included) are now invalid — hand back a fresh one.
+    res.json({ message: 'Password updated successfully', token: signToken(user._id) })
   } catch (err) {
     res.status(500).json({ message: err.message })
   }
@@ -89,8 +91,9 @@ const changePasswordFirstTime = async (req, res) => {
     const user = await User.findById(req.user._id).select('+password')
     user.password = newPassword
     user.mustChangePassword = false
+    user.passwordChangedAt = new Date()
     await user.save()
-    res.json({ message: 'Password updated successfully', user: user.toJSON() })
+    res.json({ message: 'Password updated successfully', user: user.toJSON(), token: signToken(user._id) })
   } catch (err) {
     res.status(500).json({ message: err.message })
   }

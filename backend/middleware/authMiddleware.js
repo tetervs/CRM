@@ -14,6 +14,10 @@ const protect = async (req, res, next) => {
     if (!user || !user.isActive) {
       return res.status(401).json({ message: 'Not authorized — user inactive or not found' })
     }
+    // `t` is the ms-precision issue time (see signToken); older tokens fall back to iat seconds.
+    if (user.passwordChangedAt && (decoded.t ?? decoded.iat * 1000) < user.passwordChangedAt.getTime()) {
+      return res.status(401).json({ message: 'Not authorized — password changed, please log in again' })
+    }
     req.user = user
     // fisRole is only visible to FIS users: strip it from every JSON response for everyone else.
     if (!user.fisRole) {

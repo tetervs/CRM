@@ -22,6 +22,7 @@ export function EditUserModal({ user: target, onClose, onSaved }) {
   const me = useAuthStore((s) => s.user)
   const [form, setForm] = useState(null)
   const [departments, setDepartments] = useState([])
+  const [managers, setManagers] = useState([])
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [tempPassword, setTempPassword] = useState('')
@@ -41,11 +42,18 @@ export function EditUserModal({ user: target, onClose, onSaved }) {
       email: data.email,
       role: data.role,
       department: data.department?._id || '',
+      manager: data.manager?._id || '',
       isActive: data.isActive ? 'active' : 'inactive',
       fisRole: data.fisRole || '',
     })).catch(() => setError('Could not load user.'))
     api.get('/departments').then(({ data }) => setDepartments(data.filter((d) => d.isActive !== false))).catch(() => {})
   }, [target])
+
+  // Manager options follow the chosen department (same endpoint as Add User).
+  useEffect(() => {
+    if (!form?.department) { setManagers([]); return }
+    api.get('/users/managers', { params: { department: form.department } }).then(({ data }) => setManagers(data)).catch(() => setManagers([]))
+  }, [form?.department])
 
   const set = (e) => { setForm((f) => ({ ...f, [e.target.name]: e.target.value })); setError('') }
 
@@ -54,7 +62,7 @@ export function EditUserModal({ user: target, onClose, onSaved }) {
     setSaving(true)
     setError('')
     try {
-      const payload = { ...form, isActive: form.isActive === 'active', fisRole: form.fisRole || null }
+      const payload = { ...form, isActive: form.isActive === 'active', fisRole: form.fisRole || null, manager: form.role === 'admin' ? null : (form.manager || null) }
       if (!payload.department) delete payload.department
       const { data } = await api.patch(`/users/${target._id}`, payload)
       onSaved?.(data)
@@ -108,6 +116,13 @@ export function EditUserModal({ user: target, onClose, onSaved }) {
             <option value="">No department</option>
             {departments.map((d) => <option key={d._id} value={d._id}>{d.name}</option>)}
           </Select>
+
+          {form.role !== 'admin' && (
+            <Select label={form.role === 'manager' ? 'Reports to (head or admin)' : 'Manager'} name="manager" value={form.manager} onChange={set}>
+              <option value="">None</option>
+              {managers.filter((m) => m._id !== target._id && (form.role !== 'manager' || m.role !== 'manager')).map((m) => <option key={m._id} value={m._id}>{m.name} ({m.role})</option>)}
+            </Select>
+          )}
 
           <Select label="FIS access" name="fisRole" value={form.fisRole} onChange={set} disabled={isSelf}>
             <option value="">None</option>

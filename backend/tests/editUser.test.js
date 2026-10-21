@@ -36,6 +36,7 @@ beforeAll(async () => {
   await mk('manager', 'manager')
   await mk('sales', 'sales', { manager: undefined })
   await mk('victim', 'employee')
+  await mk('employee2', 'employee', { manager: ids.manager })
 })
 
 afterAll(async () => {
@@ -175,5 +176,168 @@ describe('reset password', () => {
     expect(JSON.stringify(row)).not.toContain(r.body.tempPassword)
     const again = await request(app).get(`/api/users/${ids.sales}`).set(auth('head'))
     expect(JSON.stringify(again.body)).not.toContain(r.body.tempPassword)
+  })
+})
+
+describe('session invalidation', () => {
+  const h = (t) => ({ Authorization: `Bearer ${t}` })
+  test('reset password: old token 401, new login works', async () => {
+    const oldTok = jwt.sign({ id: ids.employee2 }, process.env.JWT_SECRET)
+    expect((await request(app).get('/api/auth/me').set(h(oldTok))).status).toBe(200)
+    const r = await request(app).post(`/api/users/${ids.employee2}/reset-password`).set(auth('head'))
+    expect(r.status).toBe(200)
+    expect((await request(app).get('/api/auth/me').set(h(oldTok))).status).toBe(401)
+    const login = await request(app).post('/api/auth/login').send({ email: 'employee2@x.com', password: r.body.tempPassword })
+    expect(login.status).toBe(200)
+    expect((await request(app).get('/api/auth/me').set(h(login.body.token))).status).toBe(200)
+  })
+  test('change-password-first-time and change-password invalidate the old token and return a working one', async () => {
+    const t0 = jwt.sign({ id: ids.employee2, t: Date.now() }, process.env.JWT_SECRET)
+    const first = await request(app).post('/api/auth/change-password-first-time').set(h(t0)).send({ newPassword: 'newpass1' })
+    expect(first.status).toBe(200)
+    expect((await request(app).get('/api/auth/me').set(h(t0))).status).toBe(401)
+    expect((await request(app).get('/api/auth/me').set(h(first.body.token))).status).toBe(200)
+    const second = await request(app).post('/api/auth/change-password').set(h(first.body.token)).send({ currentPassword: 'newpass1', newPassword: 'newpass2' })
+    expect(second.status).toBe(200)
+    expect((await request(app).get('/api/auth/me').set(h(first.body.token))).status).toBe(401)
+    expect((await request(app).get('/api/auth/me').set(h(second.body.token))).status).toBe(200)
+  })
+})
+
+describe('deactivate / reactivate (head + admin)', () => {
+  test('admin can deactivate and reactivate a non-head', async () => {
+    expect((await patch('admin', 'employee2', { isActive: false })).status).toBe(200)
+    expect((await User.findById(ids.employee2)).isActive).toBe(false)
+    expect((await patch('admin', 'employee2', { isActive: true })).status).toBe(200)
+    expect((await User.findById(ids.employee2)).isActive).toBe(true)
+  })
+  test('admin cannot deactivate a head; head can deactivate and reactivate another head', async () => {
+    expect((await patch('admin', 'head2', { isActive: false })).status).toBe(403)
+    expect((await request(app).delete(`/api/users/${ids.head2}`).set(auth('admin'))).status).toBe(403)
+    expect((await patch('head', 'head2', { isActive: false })).status).toBe(200)
+    expect((await patch('head', 'head2', { isActive: true })).status).toBe(200)
+  })
+  test('manager/sales get 403', async () => {
+    tok.sales = jwt.sign({ id: ids.sales, t: Date.now() }, process.env.JWT_SECRET) // earlier test reset sales' password
+    expect((await patch('manager', 'employee2', { isActive: false })).status).toBe(403)
+    expect((await patch('sales', 'employee2', { isActive: false })).status).toBe(403)
+  })
+})
+
+describe('manager (Reports To) edit', () => {
+  test('sets manager; validates manager role; required for employee; forbidden for admin', async () => {
+    expect((await patch('head', 'employee2', { manager: String(ids.sales) })).status).toBe(400)
+    expect((await patch('head', 'employee2', { manager: String(ids.manager) })).status).toBe(200)
+    expect((await patch('head', 'employee2', { manager: null })).status).toBe(400)
+    expect((await patch('head', 'admin', { manager: String(ids.head) })).status).toBe(400)
+  })
+})
+
+describe('hard delete (head only)', () => {
+  const del = (who, target, body) => request(app).delete(`/api/users/${ids[target]}/permanent`).set(auth(who)).send(body)
+  const mkUser = async (label, extra = {}) => {
+    const u = await User.create({ name: label, email: `${label}@x.com`, password: 'pw1234', role: 'employee', ...extra })
+    ids[label] = u._id
+    return u
+  }
+
+  test('admin / manager get 403; user survives', async () => {
+    await mkUser('del1')
+    expect((await del('admin', 'del1', { confirmEmail: 'del1@x.com' })).status).toBe(403)
+    expect((await del('manager', 'del1', { confirmEmail: 'del1@x.com' })).status).toBe(403)
+    expect(await User.exists({ _id: ids.del1 })).toBeTruthy()
+  })
+  test('requires matching confirmEmail', async () => {
+    expect((await del('head', 'del1', {})).status).toBe(400)
+    expect((await del('head', 'del1', { confirmEmail: 'nope@x.com' })).status).toBe(400)
+    expect(await User.exists({ _id: ids.del1 })).toBeTruthy()
+  })
+  test('zero-reference user is deleted and logged with email + name', async () => {
+    const r = await del('head', 'del1', { confirmEmail: 'DEL1@x.com' })
+    expect(r.status).toBe(200)
+    expect(await User.exists({ _id: ids.del1 })).toBeNull()
+    const row = await UserAuditLog.findOne({ field: 'deleted', target: ids.del1 })
+    expect(row.targetEmail).toBe('del1@x.com')
+    expect(row.targetName).toBe('del1')
+    expect(String(row.actor)).toBe(String(ids.head))
+  })
+  test('cannot delete yourself', async () => {
+    expect((await del('head', 'head', { confirmEmail: 'head@x.com' })).status).toBe(400)
+    expect(await User.exists({ _id: ids.head })).toBeTruthy()
+  })
+  test('cannot delete the last remaining head', async () => {
+    const real = User.exists.bind(User)
+    const spy = jest.spyOn(User, 'exists').mockImplementation((f) => (f && f.role === 'head' ? Promise.resolve(null) : real(f)))
+    const r = await del('head', 'head2', { confirmEmail: 'head2@x.com' })
+    spy.mockRestore()
+    expect(r.status).toBe(400)
+    expect(r.body.message).toMatch(/last/i)
+    expect(await User.exists({ _id: ids.head2 })).toBeTruthy()
+  })
+  test('a head can delete another head when one remains', async () => {
+    await mkUser('head3', { role: 'head' })
+    expect((await del('head', 'head3', { confirmEmail: 'head3@x.com' })).status).toBe(200)
+  })
+
+  const refs = (id) => [
+    ['leads',           'Lead',           { owner: id }],
+    ['leads',           'Lead',           { activityLog: [{ performedBy: id }] }],
+    ['projects',        'Project',        { projectHead: id }],
+    ['projects',        'Project',        { teamMembers: [id] }],
+    ['reimbursements',  'Reimbursement',  { submittedBy: id }],
+    ['reimbursements',  'Reimbursement',  { approvalChain: [{ user: id }] }],
+    ['manpowerPulls',   'ManpowerPull',   { pulledEmployee: id }],
+    ['milestones',      'Milestone',      { createdBy: id }],
+    ['notifications',   'Notification',   { recipient: id }],
+    ['exportAuditLogs', 'ExportAuditLog', { userId: id }],
+    ['fisCases',        'FisCase',        { support2: id }],
+    ['fisCaseHistory',  'FisCaseHistory', { by: id }],
+    ['fisQcRuns',       'FisQcRun',       { createdBy: id }],
+    ['fisQcRuns',       'FisQcRun',       { rounds: [{ closedBy: id }] }],
+    ['userAuditLog',    'UserAuditLog',   { actor: id }],
+    ['directReports',   'User',           { manager: id }],
+  ]
+  test.each(refs(new mongoose.Types.ObjectId()).map((r, i) => [i, r[0], r[1]]))('reference #%i in %s (%s) -> 409 with counts, user kept', async (i, label, model) => {
+    const u = await mkUser(`ref${i}`)
+    const doc = refs(u._id)[i][2]
+    const Model = model === 'User' ? User : require(`../models/${model}`)
+    const ins = await Model.collection.insertOne(doc)
+    const r = await del('head', `ref${i}`, { confirmEmail: `ref${i}@x.com` })
+    await Model.collection.deleteOne({ _id: ins.insertedId })
+    expect(r.status).toBe(409)
+    expect(r.body.counts[label]).toBe(1)
+    expect(await User.exists({ _id: u._id })).toBeTruthy()
+  })
+  test('rows where the user is only the TARGET are not activity: edit then delete succeeds', async () => {
+    const u = await mkUser('edited')
+    expect((await patch('head', 'edited', { name: 'Edited Name' })).status).toBe(200)
+    expect(await UserAuditLog.countDocuments({ target: u._id })).toBeGreaterThan(0)
+    expect((await del('head', 'edited', { confirmEmail: 'edited@x.com' })).status).toBe(200)
+    expect(await User.exists({ _id: u._id })).toBeNull()
+  })
+  test('counts are reported per collection', async () => {
+    const u = await mkUser('multi')
+    const Lead = require('../models/Lead')
+    const Notification = require('../models/Notification')
+    await Lead.collection.insertOne({ owner: u._id })
+    await Notification.collection.insertMany([{ recipient: u._id }, { recipient: u._id }])
+    const r = await del('head', 'multi', { confirmEmail: 'multi@x.com' })
+    expect(r.status).toBe(409)
+    expect(r.body.counts).toEqual({ leads: 1, notifications: 2 })
+  })
+})
+
+describe('Add User applies ALLOWED_EMAIL_DOMAINS', () => {
+  const add = (email) => request(app).post('/api/users').set(auth('head')).send({ name: 'New Person', email, role: 'admin', department: String(dept._id), password: 'secret12' })
+  test('disallowed domain -> 400, nothing created', async () => {
+    const r = await add('new@evil.com')
+    expect(r.status).toBe(400)
+    expect(r.body.message).toMatch(/domain/i)
+    expect(await User.exists({ email: 'new@evil.com' })).toBeNull()
+  })
+  test('allowed domain (any case) -> 201', async () => {
+    const r = await add('New.Person@Y.com')
+    expect(r.status).toBe(201)
+    expect(r.body.user.email).toBe('new.person@y.com')
   })
 })
