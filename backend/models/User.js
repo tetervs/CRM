@@ -17,6 +17,8 @@ const userSchema = new mongoose.Schema({
   // FIS module access. Orthogonal to `role`; all /api/fis/* authorization keys off this only.
   fisRole: { type: String, enum: [null, 'fis_admin', 'fis_member'], default: null },
   designation: { type: String, trim: true, maxlength: 100, default: '' },
+  // Tokens issued before this are rejected by protect (set on every password change/reset).
+  passwordChangedAt: { type: Date, default: null },
   mustChangePassword: { type: Boolean, default: false },
   isActive: { type: Boolean, default: true },
   failedLoginAttempts:   { type: Number, default: 0 },

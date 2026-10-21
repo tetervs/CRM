@@ -1,5 +1,5 @@
 const router = require('express').Router()
-const { getUsers, getManagers, getUser, createUser, updateRole, updateUser, deleteUser, resetPassword } = require('../controllers/userController')
+const { getUsers, getManagers, getUser, createUser, updateRole, updateUser, deleteUser, hardDeleteUser, resetPassword } = require('../controllers/userController')
 const { protect } = require('../middleware/authMiddleware')
 const { requireRole } = require('../middleware/roleMiddleware')
 const { createUserRules, updateUserRules, updateRoleRules, mongoId } = require('../middleware/validators')
@@ -14,6 +14,7 @@ router.get('/:id',      mongoId(), validate, requireRole('head', 'admin'), getUs
 router.put('/:id/role', updateRoleRules, validate, requireRole('head', 'admin'), updateRole)
 router.patch('/:id',    updateUserRules, validate, requireRole('head', 'admin'), updateUser)
 router.post('/:id/reset-password', mongoId(), validate, requireRole('head', 'admin'), resetPassword)
+router.delete('/:id/permanent', mongoId(), validate, requireRole('head'), hardDeleteUser)
 router.delete('/:id',   mongoId(), validate, requireRole('head', 'admin'), deleteUser)
 
 module.exports = router

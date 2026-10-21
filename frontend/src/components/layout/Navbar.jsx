@@ -84,10 +84,11 @@ export function Navbar() {
     }
     setPwLoading(true)
     try {
-      await api.post('/auth/change-password', {
+      const { data } = await api.post('/auth/change-password', {
         currentPassword: pwForm.currentPassword,
         newPassword:     pwForm.newPassword,
       })
+      useAuthStore.getState().setToken(data.token)
       setPwSuccess('Password updated successfully.')
       setTimeout(() => setChangePwOpen(false), 1500)
     } catch (err) {

@@ -4,7 +4,7 @@ import { Button } from '../components/ui/Button'
 import { Modal } from '../components/ui/Modal'
 import { UserPerformanceDrawer } from '../components/shared/UserPerformanceDrawer'
 import { AddUserModal } from '../components/shared/AddUserModal'
-import { EditUserModal } from '../components/shared/EditUserModal'
+import { UserActions } from '../components/shared/UserActions'
 import useAuthStore from '../store/authStore'
 import useLeadStore from '../store/leadStore'
 import api from '../api/index'
@@ -38,7 +38,6 @@ export default function Team() {
   const [newManagerId, setNewManagerId] = useState('')
   const [managerOptions, setManagerOptions] = useState([])
   const [savingManager, setSavingManager] = useState(false)
-  const [editTarget, setEditTarget] = useState(null)
   const [showInactive, setShowInactive] = useState(true)
 
   const isAdmin     = user?.role === 'admin'
@@ -57,15 +56,6 @@ export default function Team() {
   const handleRoleChange = async (id, role) => {
     await api.put(`/users/${id}/role`, { role })
     setTeam((t) => t.map((m) => (m._id === id ? { ...m, role } : m)))
-  }
-
-  const handleToggleActive = async (member) => {
-    try {
-      await api.patch(`/users/${member._id}`, { isActive: !member.isActive })
-      setTeam((t) => t.map((m) => (m._id === member._id ? { ...m, isActive: !m.isActive } : m)))
-    } catch (err) {
-      window.alert(err.response?.data?.message || 'Could not update status')
-    }
   }
 
   const openManagerEdit = (member) => {
@@ -168,10 +158,7 @@ export default function Team() {
                       <td className="px-5 py-3.5 text-slate-500">{formatDate(member.createdAt)}</td>
                       {isPrivileged && (
                         <td className="px-5 py-3.5">
-                          <div className="flex items-center gap-2">
-                            <Button variant="ghost" size="sm" onClick={() => setEditTarget(member)}>
-                              Edit
-                            </Button>
+                          <UserActions member={member} onChanged={loadTeam}>
                             <Button variant="ghost" size="sm" onClick={() => setAnalyseUserId(member._id)}>
                               Analyse
                             </Button>
@@ -180,16 +167,7 @@ export default function Team() {
                                 Reports To
                               </Button>
                             )}
-                            {isAdmin && !SPECIAL_ROLES.includes(member.role) && (
-                              <Button
-                                variant={member.isActive ? 'danger' : 'secondary'}
-                                size="sm"
-                                onClick={() => handleToggleActive(member)}
-                              >
-                                {member.isActive ? 'Deactivate' : 'Reactivate'}
-                              </Button>
-                            )}
-                          </div>
+                          </UserActions>
                         </td>
                       )}
                     </tr>
@@ -234,8 +212,6 @@ export default function Team() {
           </div>
         </div>
       </Modal>
-
-      <EditUserModal user={editTarget} onClose={() => setEditTarget(null)} onSaved={loadTeam} />
 
       <AddUserModal
         isOpen={showAdd}

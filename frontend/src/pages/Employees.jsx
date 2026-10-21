@@ -1,8 +1,8 @@
 import { useState, useEffect, Fragment } from 'react'
 import { PageWrapper } from '../components/layout/PageWrapper'
 import { Button } from '../components/ui/Button'
-import { Modal } from '../components/ui/Modal'
 import { AddUserModal } from '../components/shared/AddUserModal'
+import { UserActions } from '../components/shared/UserActions'
 import useAuthStore from '../store/authStore'
 import api from '../api/index'
 
@@ -13,22 +13,13 @@ const ROLE_STYLES = {
   employee: 'bg-slate-100 text-slate-600',
 }
 
-const ROLE_OPTIONS_BASE  = ['employee', 'sales']
-const ROLE_OPTIONS_ADMIN = ['employee', 'sales', 'manager']
-
 export default function Employees() {
   const { user } = useAuthStore()
   const [employees, setEmployees] = useState([])
-  const [editTarget, setEditTarget] = useState(null)
-  const [newRole, setNewRole] = useState('')
-  const [newManager, setNewManager] = useState('')
-  const [managers, setManagers] = useState([])
-  const [saving, setSaving] = useState(false)
+  const [showInactive, setShowInactive] = useState(true)
   const [showAdd, setShowAdd] = useState(false)
 
   const isPrivileged = ['head', 'admin'].includes(user?.role)
-  const isAdmin      = user?.role === 'admin'
-  const roleOptions  = isAdmin ? ROLE_OPTIONS_ADMIN : ROLE_OPTIONS_BASE
 
   const loadEmployees = () => {
     api.get('/users').then(({ data }) => {
@@ -36,7 +27,7 @@ export default function Employees() {
     }).catch(() => {})
   }
 
-  const groups = employees.reduce((acc, member) => {
+  const groups = employees.filter((m) => showInactive || m.isActive).reduce((acc, member) => {
     const dept = member.department?.name || 'Unassigned'
     ;(acc[dept] ??= []).push(member)
     return acc
@@ -45,37 +36,6 @@ export default function Employees() {
 
   useEffect(() => { loadEmployees() }, [])
 
-  const openEdit = (member) => {
-    setEditTarget(member)
-    setNewRole(member.role)
-    setNewManager(member.manager?._id || '')
-    setManagers([])
-    api.get('/users/managers', { params: { department: member.department?._id } })
-      .then(({ data }) => setManagers(data))
-      .catch(() => setManagers([]))
-  }
-
-  const handleSave = async () => {
-    const roleChanged    = newRole && newRole !== editTarget.role
-    const managerChanged = (newManager || '') !== (editTarget.manager?._id || '')
-    if (!roleChanged && !managerChanged) {
-      setEditTarget(null)
-      return
-    }
-    setSaving(true)
-    try {
-      const payload = { role: newRole || editTarget.role }
-      if (managerChanged) payload.manager = newManager || null
-      const { data } = await api.put(`/users/${editTarget._id}/role`, payload)
-      setEmployees((prev) => {
-        const updated = prev.map((m) => m._id === editTarget._id ? data : m)
-        return updated.filter((m) => WORKER_ROLES.includes(m.role))
-      })
-    } catch {}
-    setSaving(false)
-    setEditTarget(null)
-  }
-
   return (
     <PageWrapper>
       <div className="flex items-center justify-between mb-5">
@@ -83,9 +43,15 @@ export default function Employees() {
           <h1 className="text-xl font-bold text-slate-900">Employees</h1>
           <p className="text-sm text-slate-500 mt-0.5">{employees.filter((e) => e.isActive).length} active</p>
         </div>
-        {isPrivileged && (
-          <Button variant="primary" size="md" onClick={() => setShowAdd(true)}>+ Add User</Button>
-        )}
+        <div className="flex items-center gap-4">
+          <label className="flex items-center gap-2 text-sm text-slate-600 cursor-pointer">
+            <input type="checkbox" checked={showInactive} onChange={(e) => setShowInactive(e.target.checked)} />
+            Show deactivated
+          </label>
+          {isPrivileged && (
+            <Button variant="primary" size="md" onClick={() => setShowAdd(true)}>+ Add User</Button>
+          )}
+        </div>
       </div>
 
       <div className="bg-white border border-surface-border rounded-xl shadow-sm overflow-hidden">
@@ -108,7 +74,7 @@ export default function Employees() {
                   </td>
                 </tr>
                 {groups[dept].map((member) => (
-                  <tr key={member._id} className="hover:bg-surface-bg transition-colors">
+                  <tr key={member._id} className={`hover:bg-surface-bg transition-colors ${member.isActive ? '' : 'opacity-50'}`}>
                     <td className="px-5 py-3.5">
                       <div className="flex items-center gap-3">
                         <div className="w-8 h-8 rounded-full bg-slate-100 text-slate-600 text-sm font-bold flex items-center justify-center shrink-0">
@@ -132,9 +98,7 @@ export default function Employees() {
                     </td>
                     {isPrivileged && (
                       <td className="px-5 py-3.5">
-                        <Button variant="ghost" size="sm" onClick={() => openEdit(member)}>
-                          Edit Role
-                        </Button>
+                        <UserActions member={member} onChanged={loadEmployees} />
                       </td>
                     )}
                   </tr>
@@ -151,47 +115,6 @@ export default function Employees() {
           </tbody>
         </table>
       </div>
-
-      <Modal isOpen={!!editTarget} onClose={() => setEditTarget(null)} title={`Edit Details — ${editTarget?.name}`}>
-        <div className="space-y-4">
-          <div className="flex flex-col gap-1">
-            <label className="text-xs font-medium text-slate-600 uppercase tracking-wide">Role</label>
-            <select
-              value={newRole}
-              onChange={(e) => setNewRole(e.target.value)}
-              className="w-full px-3 py-2 text-sm rounded-md border border-surface-border bg-white focus:outline-none focus:border-brand-primary"
-            >
-              {roleOptions.map((r) => (
-                <option key={r} value={r}>{r}</option>
-              ))}
-            </select>
-          </div>
-          {newRole === 'manager' && (
-            <p className="text-xs text-amber-600 bg-amber-50 px-3 py-2 rounded-md">
-              Promoting to manager will move this user to the Team page.
-            </p>
-          )}
-          <div className="flex flex-col gap-1">
-            <label className="text-xs font-medium text-slate-600 uppercase tracking-wide">
-              {newRole === 'manager' ? 'Reports to (head)' : 'Manager'}
-            </label>
-            <select
-              value={newManager}
-              onChange={(e) => setNewManager(e.target.value)}
-              className="w-full px-3 py-2 text-sm rounded-md border border-surface-border bg-white focus:outline-none focus:border-brand-primary"
-            >
-              <option value="">Select…</option>
-              {managers.map((m) => (
-                <option key={m._id} value={m._id}>{m.name} ({m.role})</option>
-              ))}
-            </select>
-          </div>
-          <div className="flex justify-end gap-2">
-            <Button variant="secondary" size="sm" onClick={() => setEditTarget(null)}>Cancel</Button>
-            <Button variant="primary" size="sm" loading={saving} onClick={handleSave}>Save</Button>
-          </div>
-        </div>
-      </Modal>
 
       <AddUserModal
         isOpen={showAdd}

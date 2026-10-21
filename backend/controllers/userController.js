@@ -2,6 +2,7 @@ const User = require('../models/User')
 const crypto = require('crypto')
 const Department = require('../models/Department')
 const UserAuditLog = require('../models/UserAuditLog')
+const { userReferences } = require('../utils/userReferences')
 
 const CREATABLE_ROLES   = ['employee', 'sales', 'manager', 'admin']
 const MANAGER_REQUIRED   = ['employee', 'sales', 'manager']
@@ -84,6 +85,7 @@ const createUser = async (req, res) => {
     }
 
     const normEmail = email.toLowerCase().trim()
+    if (!emailDomainAllowed(normEmail)) return res.status(400).json({ message: 'Email domain is not allowed' })
     const exists = await User.findOne({ email: normEmail })
     if (exists) return res.status(400).json({ message: 'Email already registered' })
 
@@ -183,8 +185,8 @@ const updateRole = async (req, res) => {
   }
 }
 
-const MANAGER_NEEDED_ON_PROMOTE = MANAGER_REQUIRED
-const EDITABLE = ['name', 'email', 'role', 'department', 'isActive', 'fisRole']
+const EDITABLE = ['name', 'email', 'role', 'department', 'manager', 'isActive', 'fisRole']
+const ID_FIELDS = ['department', 'manager']
 
 // ALLOWED_EMAIL_DOMAINS (comma-separated) — enforced only when set.
 const emailDomainAllowed = (email) => {
@@ -207,10 +209,12 @@ const updateUser = async (req, res) => {
     if (typeof body.email === 'string') body.email = body.email.toLowerCase().trim()
     if (typeof body.name === 'string') body.name = body.name.trim()
     if ('fisRole' in body && !body.fisRole) body.fisRole = null
+    if ('manager' in body && !body.manager) body.manager = null
+    if ('department' in body && !body.department) body.department = null
     const changes = {}
     for (const f of EDITABLE) {
       if (!(f in body)) continue
-      const cur = f === 'department' ? (target.department ? String(target.department) : null) : target[f]
+      const cur = ID_FIELDS.includes(f) ? (target[f] ? String(target[f]) : null) : target[f]
       if ((body[f] ?? null) !== (cur ?? null)) changes[f] = body[f]
     }
 
@@ -234,8 +238,19 @@ const updateUser = async (req, res) => {
     if (changes.department && !(await Department.findById(changes.department))) {
       return res.status(400).json({ message: 'Department not found' })
     }
-    if (changes.role && MANAGER_NEEDED_ON_PROMOTE.includes(changes.role) && !target.manager) {
-      return res.status(400).json({ message: `Assign a manager (Reports To) before making this user a ${changes.role}` })
+    // Manager rules — same as createUser/updateRole, applied to the resulting role + manager.
+    const newRole = changes.role || target.role
+    const newManager = 'manager' in changes ? changes.manager : target.manager
+    if (changes.manager) {
+      if (MANAGER_FORBIDDEN.includes(newRole)) return res.status(400).json({ message: `A ${newRole} cannot be assigned a manager` })
+      if (String(changes.manager) === String(target._id)) return res.status(400).json({ message: 'A user cannot report to themselves' })
+      const mgr = await User.findById(changes.manager)
+      if (!mgr) return res.status(400).json({ message: 'Assigned manager not found' })
+      if (!MANAGER_OR_HIGHER.includes(mgr.role)) return res.status(400).json({ message: 'Assigned manager must have role manager or higher' })
+      if (newRole === 'manager' && !MANAGER_REPORTS_TO.includes(mgr.role)) return res.status(400).json({ message: 'A manager must report to head or admin' })
+    }
+    if (('role' in changes || 'manager' in changes) && MANAGER_REQUIRED.includes(newRole) && !newManager) {
+      return res.status(400).json({ message: `A manager (Reports To) is required for the ${newRole} role` })
     }
     const leavingHead = target.role === 'head' && target.isActive &&
       ((changes.role && changes.role !== 'head') || changes.isActive === false)
@@ -249,7 +264,7 @@ const updateUser = async (req, res) => {
       target.set(changes)
       await target.save()
       await UserAuditLog.insertMany(fields.map((f) => ({
-        actor: req.user._id, target: target._id, field: f, oldValue: before[f] ?? null, newValue: changes[f] ?? null,
+        actor: req.user._id, target: target._id, targetEmail: target.email, targetName: target.name, field: f, oldValue: before[f] ?? null, newValue: changes[f] ?? null,
       })))
     }
 
@@ -270,6 +285,34 @@ const deleteUser = (req, res) => {
   return updateUser(req, res)
 }
 
+// Head-only permanent delete. Refused (409 + per-collection counts) if the user is
+// referenced anywhere — those users must be deactivated instead.
+const hardDeleteUser = async (req, res) => {
+  try {
+    const target = await User.findById(req.params.id)
+    if (!target) return res.status(404).json({ message: 'User not found' })
+    if (String(target._id) === String(req.user._id)) return res.status(400).json({ message: 'You cannot delete yourself' })
+    if ((req.body?.confirmEmail || '').toLowerCase().trim() !== target.email) {
+      return res.status(400).json({ message: 'confirmEmail must match the user email' })
+    }
+    if (target.role === 'head' && !(await User.exists({ role: 'head', isActive: true, _id: { $ne: target._id } }))) {
+      return res.status(400).json({ message: 'Cannot delete the last remaining head' })
+    }
+    const counts = await userReferences(target._id)
+    if (Object.keys(counts).length) {
+      return res.status(409).json({ message: 'User has activity — deactivate instead', counts })
+    }
+    await target.deleteOne()
+    await UserAuditLog.create({
+      actor: req.user._id, target: target._id, targetEmail: target.email, targetName: target.name,
+      field: 'deleted', oldValue: { email: target.email, name: target.name, role: target.role }, newValue: null,
+    })
+    res.json({ message: 'User deleted' })
+  } catch (err) {
+    res.status(500).json({ message: err.message })
+  }
+}
+
 // Temp password is returned once; only a hash is stored and the log never holds it.
 const resetPassword = async (req, res) => {
   try {
@@ -281,14 +324,15 @@ const resetPassword = async (req, res) => {
     const tempPassword = crypto.randomBytes(9).toString('base64url')
     target.password = tempPassword
     target.mustChangePassword = true
+    target.passwordChangedAt = new Date()
     target.failedLoginAttempts = 0
     target.lockUntil = null
     await target.save()
-    await UserAuditLog.create({ actor: req.user._id, target: target._id, field: 'password', newValue: 'reset' })
+    await UserAuditLog.create({ actor: req.user._id, target: target._id, targetEmail: target.email, targetName: target.name, field: 'password', newValue: 'reset' })
     res.json({ tempPassword })
   } catch (err) {
     res.status(500).json({ message: err.message })
   }
 }
 
-module.exports = { getUsers, getManagers, getUser, createUser, updateRole, updateUser, deleteUser, resetPassword }
+module.exports = { getUsers, getManagers, getUser, createUser, updateRole, updateUser, deleteUser, hardDeleteUser, resetPassword }

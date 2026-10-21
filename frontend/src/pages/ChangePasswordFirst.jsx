@@ -9,7 +9,7 @@ export default function ChangePasswordFirst() {
   const [form, setForm] = useState({ password: '', confirm: '' })
   const [errors, setErrors] = useState({})
   const [loading, setLoading] = useState(false)
-  const { updateUser, logout } = useAuthStore()
+  const { updateUser, setToken, logout } = useAuthStore()
   const navigate = useNavigate()
 
   const handleChange = (e) => {
@@ -26,7 +26,8 @@ export default function ChangePasswordFirst() {
 
     setLoading(true)
     try {
-      await api.post('/auth/change-password-first-time', { newPassword: form.password })
+      const { data } = await api.post('/auth/change-password-first-time', { newPassword: form.password })
+      setToken(data.token)
       updateUser({ mustChangePassword: false })
       navigate('/dashboard')
     } catch (err) {

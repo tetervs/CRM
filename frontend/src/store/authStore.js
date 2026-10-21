@@ -26,6 +26,12 @@ const useAuthStore = create((set) => ({
       return { user }
     }),
 
+  // Swap in a fresh token (password change invalidates the old one server-side).
+  setToken: (token) => {
+    localStorage.setItem('crm_token', token)
+    set({ token })
+  },
+
   logout: () => {
     localStorage.removeItem('crm_token')
     localStorage.removeItem('crm_user')

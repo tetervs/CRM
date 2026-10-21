@@ -131,6 +131,7 @@ const updateUserRules = [
   body('role').optional().isIn(['head', 'ca', 'admin', 'manager', 'sales', 'employee']).withMessage('Invalid role'),
   body('department').optional().isMongoId().withMessage('Department must be a valid ID'),
   body('isActive').optional().isBoolean({ strict: true }).withMessage('isActive must be true or false'),
+  body('manager').optional({ nullable: true, checkFalsy: true }).isMongoId().withMessage('Manager must be a valid ID'),
   body('fisRole').optional({ nullable: true }).isIn(['fis_member', 'fis_admin']).withMessage('Invalid FIS access'),
 ]
 
